@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #f5f6fa;
+  --color-surface: #ffffff;
+  --color-ink: #17213c;
+  --color-muted: #5f687e;
+  --color-primary: #5145cd;
+  --color-primary-hover: #4035ad;
+  --color-primary-soft: #eeecff;
+  --color-line: #e2e5ee;
+  --font-sans: "Segoe UI", Arial, Helvetica, sans-serif;
+  --font-display: "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+::selection {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 5px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
