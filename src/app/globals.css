@@ -33,6 +33,13 @@ body {
   outline-offset: 5px;
 }
 
+@layer components {
+  .auth-input { @apply w-full rounded-xl border border-line bg-surface px-4 py-3 text-ink placeholder:text-muted; }
+  .auth-input[aria-invalid="true"] { border-color: #b42318; }
+  .auth-error { @apply text-sm leading-relaxed; color: #b42318; }
+  .auth-button { @apply inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 font-semibold text-white transition-colors hover:bg-primary-hover disabled:cursor-wait disabled:opacity-60; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 }

@@ -1,5 +1,6 @@
 import { ArrowDown, ArrowUpRight, Armchair, CalendarDays, Coffee, Users, Volume2 } from "lucide-react";
 import { RoomlyLogo } from "@/components/roomly-logo";
+import Link from "next/link";
 
 const purposes = [
   { icon: Users, title: "Come together", description: "A place to meet, share ideas, and make progress as a team." },
@@ -13,7 +14,11 @@ export default function HomePage() {
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:z-10 focus:rounded-lg focus:bg-surface focus:p-3">Skip to content</a>
       <header className="flex items-center justify-between gap-4 border-b border-line py-6">
         <RoomlyLogo />
-        <span className="rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-muted sm:text-sm">A new space is taking shape</span>
+        <span className="hidden rounded-full border border-line bg-surface px-3 py-1.5 text-sm font-medium text-muted lg:block">A new space is taking shape</span>
+        <nav aria-label="Account" className="flex flex-wrap items-center justify-end gap-3 text-sm font-semibold sm:gap-5">
+          <Link href="/sign-in" className="text-primary hover:underline">Sign in</Link>
+          <Link href="/sign-up" className="rounded-xl bg-primary px-4 py-2.5 text-white hover:bg-primary-hover">Create account</Link>
+        </nav>
       </header>
 
       <main id="main">

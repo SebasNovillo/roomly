@@ -1,6 +1,6 @@
 # Roomly
 
-Roomly is a shared-space booking application. This repository currently contains its foundation: a responsive English home page, design tokens, Supabase client factories, validation, tests, and CI. The home page and production build work without Supabase credentials.
+Roomly is a shared-space booking application with a responsive English home page and Supabase email/password authentication: sign in, registration, email confirmation, a protected dashboard and POST sign out. The home page and production build work without Supabase credentials. Authentication requires project configuration; profiles require a manually applied migration. See [authentication setup and verification](docs/authentication.md) for exact steps and remaining Figma access limitations.
 
 ## Prerequisites
 
@@ -30,7 +30,7 @@ Open http://localhost:3000. No environment file is needed for the initial page. 
 | `npm run typecheck` | Generate Next.js route types and run strict TypeScript checks |
 | `npm test` | Run Vitest unit tests |
 | `npm run test:watch` | Watch unit tests during development |
-| `npm run test:e2e` | Run the home page smoke test in desktop and mobile Chromium |
+| `npm run test:e2e` | Run home and auth checks in desktop and mobile Chromium |
 
 Before running end-to-end tests for the first time:
 
@@ -40,7 +40,7 @@ npm run build
 npm run test:e2e
 ```
 
-On Linux CI hosts, use `npx playwright install --with-deps chromium`. Playwright starts and stops the production server on port 3100; keep that port available. Its test server clears the Supabase variables. Build without credentials to verify the same configuration end to end. The smoke test verifies HTTP success, page content, the introduction link, absence of browser exceptions, and absence of horizontal overflow on desktop and mobile.
+On Linux CI hosts, use `npx playwright install --with-deps chromium`. Playwright starts and stops the production server on port 3100; keep that port available. Its test server clears the Supabase variables. The tests verify the home page, account links, server form validation, password visibility, invalid confirmation handling and unauthenticated dashboard protection on desktop and mobile. They do not create accounts or send emails.
 
 ## Environment configuration
 
@@ -68,22 +68,25 @@ src/
   app/                 App Router routes, root layout, and global Tailwind styles
   components/          Reusable UI, initially the Roomly wordmark
   features/
-    auth/              Reserved for member authentication
+    auth/              Server auth actions and Zod form validation
     spaces/            Reserved for discovery and space details
     bookings/          Reserved for booking rules and workflows
-    profile/           Reserved for member profile features
+    profile/           Profile scope notes; migration in supabase/migrations
   lib/
     env.ts             Shared, lazy Zod validation of public Supabase configuration
     supabase/client.ts Browser client factory, guarded by client-only
     supabase/server.ts Request-scoped server client, guarded by server-only
-tests/e2e/             Production home page smoke test
+  proxy.ts             Next.js 16 session refresh for auth/dashboard routes
+supabase/migrations/   Versioned profile schema, triggers, grants and RLS
+docs/authentication.md Supabase setup, design limitations and manual checks
+tests/e2e/             Production home and authentication tests
 ```
 
 Routes and layouts are Server Components by default. Add Client Components only for interaction requiring browser state or APIs. Import browser and server factories directly from their respective files; do not re-export both through a shared barrel. Future backend work belongs in Next.js Route Handlers, Server Actions, and server-only feature modules; there is no Express server.
 
-The Supabase factories follow the [official cookie-based SSR guide](https://supabase.com/docs/guides/auth/server-side/creating-a-client?framework=nextjs&package-manager=npm). The browser uses `createBrowserClient`; the server uses `createServerClient` with awaited Next.js cookies and `getAll`/`setAll`. The server instance is created per request. Server Components cannot write cookies; the documented adapter catches those attempts. This foundation does not yet refresh sessions or authorize users.
+The Supabase factories follow the [official cookie-based SSR guide](https://supabase.com/docs/guides/auth/server-side/creating-a-client?framework=nextjs&package-manager=npm). The browser uses `createBrowserClient`; the server uses `createServerClient` with awaited Next.js cookies and `getAll`/`setAll`. The server instance is created per request. Server Components cannot write cookies; the adapter catches those attempts and `src/proxy.ts` refreshes sessions before rendering, preserving cookies and cache headers.
 
-Before implementing authentication, add a Next.js session-refresh proxy for the routes that use Supabase, verify identity using `auth.getClaims()` (or `getUser()` when a fresh user record is required), and preserve refreshed cookies and cache headers. Do not trust `getSession()` alone for server authorization. Add database types, schema migrations, row-level security, and database-enforced booking conflict rules before implementing persistence.
+The proxy uses `auth.getClaims()`; the dashboard and sign-out action independently use `getUser()` for current server-verified identity. No protected content trusts `getSession()` alone. Profile access is protected by database RLS and column privileges. Apply the local migration before registering users. Booking persistence and database-enforced booking conflicts remain future work.
 
 ## Design and reference findings
 
@@ -93,9 +96,9 @@ The prior inspection of the [Figma Make reference](https://www.figma.com/make/Fw
 
 ## Current scope and CI
 
-Implemented: application setup, responsive introductory home page, shared styles, browser/server Supabase factories, environment validation, Vitest tests, a Playwright smoke test, npm scripts, and GitHub Actions. Feature folders deliberately contain only scope notes.
+Implemented: application setup, introductory home page, shared styles, Supabase SSR authentication, server form validation, confirmation endpoint, protected dashboard, sign out, local profile migration, Vitest and Playwright tests, npm scripts and GitHub Actions. Remote configuration and migration are manual steps documented in `docs/authentication.md`; live account lifecycle and database/RLS checks remain manual.
 
-Deferred: application screens, sidebar, real authentication, account selection, booking persistence, availability, cancellation, profile management, and all Admin features. There are no demo passwords, fake sessions, or localStorage booking records.
+Deferred: matching inaccessible Figma authentication screens, application sidebar, booking persistence, availability, cancellation, profile editing and all Admin features. There are no demo passwords, fake sessions, account selectors or localStorage booking records.
 
 The GitHub Actions workflow installs the pinned npm version, runs `npm ci`, lint, type checking, unit tests, and a production build without live credentials. End-to-end tests are available locally and can be added to CI with browser installation later. Local dependencies, environment files, builds, test reports, traces, and temporary tooling are ignored.
 

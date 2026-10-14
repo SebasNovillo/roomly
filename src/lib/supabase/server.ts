@@ -17,8 +17,7 @@ export async function createClient() {
         try {
           cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
         } catch {
-          // Server Components cannot write cookies. Before adding authentication,
-          // wire a session-refresh proxy per the Supabase SSR guide (see README).
+          // Server Components cannot write cookies; src/proxy.ts refreshes sessions.
         }
       },
     },
