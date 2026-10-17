@@ -4,13 +4,17 @@
 
 Next.js 16.4.0 uses `src/proxy.ts`, not `middleware.ts`. The refresh helper calls `auth.getClaims()` before rendering, copies refreshed cookies to the request and response, and retains the SSR library's cache headers across cookie writes. It runs only on auth/dashboard routes, leaving the landing page independent of Supabase. Those responses are private and not cached. Each server operation creates its own client with awaited Next.js cookies. The existing browser client remains available for future client interactions; these forms use Server Actions.
 
-`/dashboard` independently calls `auth.getUser()` before querying a profile or rendering protected content. Sign out is a POST Server Action, verifies the current identity, revokes the current local session, clears the project's auth cookies, and redirects to sign in. It does not sign out other devices. Do not use user metadata for authorization: `full_name` is display data only. There are no application roles.
+The dashboard layout and each page (`/dashboard`, `/dashboard/spaces`, `/dashboard/bookings`) call the shared server-side `getViewer()` helper. It verifies `auth.getUser()` before querying that user's profile or rendering protected content. React `cache()` deduplicates these reads within a request; it does not cache identity across users. The existing proxy matcher covers all these routes. Sign out is a POST Server Action, verifies the current identity, revokes the current local session, clears the project's auth cookies, and redirects to sign in. It does not sign out other devices. Do not use user metadata for authorization: `full_name` is display data only. There are no application roles.
 
 Sign-in and registration validate with Zod on the server. Passwords are never trimmed or returned in action state. Auth provider errors are replaced with controlled English messages. Only `/` and `/dashboard` are accepted as post-auth destinations; all other input resolves to `/dashboard`. Confirmation accepts only `type=email`, calls `verifyOtp`, writes the SSR cookies and removes the token from the redirect URL. Missing, invalid, reused and expired links lead to `/sign-in?error=confirmation` with an accessible error message. There is no automatic email resend; use the project's Auth administration to resend if necessary.
 
 No code logs passwords, tokens or environment values. Incoming Next.js development request logging is disabled because confirmation URLs contain token hashes. When configuring hosting, exclude/redact query strings on `/auth/confirm` from access logs and monitoring; never store these URLs in analytics. Confirmation responses set `Referrer-Policy: no-referrer` and `Cache-Control: private, no-store`. Do not cache authenticated routes at a CDN.
 
-## Required Supabase setup (manual; not applied by this task)
+## Required Supabase setup (manual)
+
+On 2026-10-16, the user reported successful manual verification in `roomly-dev`: registration, email confirmation, sign-in, sign-out, protected dashboard access, and session persistence. The user manually applied `supabase/migrations/20261014000100_create_profiles.sql` in the Supabase SQL Editor; the profile-unavailable warning disappeared. These are user-reported live results, not automated test results. Do not rerun the migration in this project.
+
+Two-user RLS isolation, column-level privilege restrictions, anonymous access denial, timestamp updates, expired/reused confirmation links, revoked sessions, and refresh after access-token expiry remain unverified unless separately recorded. Session persistence alone does not prove expiry refresh behavior.
 
 1. Keep the existing `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` in Git-ignored `.env.local`. No service-role key is needed. Restart development after changes; rebuild production after changes to public values.
 2. In Authentication → Sign In / Providers → Email, enable the email provider, email/password registration, and **Confirm email**. Set the minimum password length to at least 8 to match this form. If you enable additional password requirements, align the form's validation/help text with them.
@@ -25,11 +29,11 @@ No code logs passwords, tokens or environment values. Incoming Next.js developme
 
    Do not use `{{ .ConfirmationURL }}` for this flow. The app needs `token_hash` on its server endpoint to establish an SSR session. The template intentionally omits a dynamic destination and always defaults to `/dashboard` after verification. Configure a working sender/SMTP for intended recipients and review Supabase email limits before manual registration. For production, replace Site URL and redirect entries with the actual HTTPS application origin and its exact `/auth/confirm` URL; no production hostname is assumed here.
 6. Ensure the Data API is enabled and `public` is an exposed schema. Keep automatic exposure/grants disabled: the migration explicitly grants only the required table/column privileges. Exposing a schema alone does not grant access to other tables.
-7. Apply the migration below before testing registration.
+7. For a new environment, apply the migration below before testing registration. It is already manually applied in `roomly-dev`.
 
 ## Applying the profile migration
 
-The versioned migration is `supabase/migrations/20261014000100_create_profiles.sql`. **It has been prepared locally, not run against your project.** Review it, select the intended Supabase project, open SQL Editor as the database owner, paste the complete file and run it once. Keep this filename as the migration record. If you already manage this project with the Supabase CLI, bring this file into that existing migration history and apply it through your established migration process instead; do not apply it through both methods.
+The versioned migration is `supabase/migrations/20261014000100_create_profiles.sql`. **The user manually applied it to `roomly-dev` through the Supabase SQL Editor, as reported on 2026-10-16. Do not rerun it there.** For a new environment only: review it, select the intended Supabase project, open SQL Editor as the database owner, paste the complete file and run it once. Keep this filename as the migration record. If you already manage that environment with the Supabase CLI, bring this file into its existing migration history and apply it through your established migration process instead; do not apply it through both methods. SQL Editor execution does not itself establish CLI migration-history tracking.
 
 The transaction creates `public.profiles`, its registration trigger, update timestamp trigger, RLS policies and explicit grants. It backfills existing users with their metadata name or `Member`. New profiles get `America/Chicago` from the database default; metadata cannot supply a different identity, timestamps or privilege. The trigger's definer function has an empty search path, fully qualified table names, a checked trigger context and no client execution grants. Its schema is private. Authenticated users can select their own row and update only `full_name` and `timezone`; no client can insert/delete profiles, change IDs or write timestamps. RLS enforces ownership for both reads and updates.
 
@@ -54,6 +58,8 @@ Manual checks after configuration and migration, using an account you choose to 
 
 ## Figma reference access
 
+Dashboard follow-up (2026-10-16): the connector again listed Make resources, but source reads returned **Unknown resource** and `get_screenshot` reported that Make files are unsupported. The Make browser preview did load, allowing visual inspection of the dashboard empty state and mobile sidebar. The application shell follows that visible reference and reuses Roomly's existing logo and installed icons; exact source styles/assets and a full desktop reference were not available. No screenshot attachments were exposed to the agent in this conversation. See `docs/dashboard.md` for the scope and verification of the new shell.
+
 The Figma design-to-code skill was loaded and `get_design_context` was called for Make file `Fwdsc61ZyEp367TAkDlSH8`, node `0:1`, requesting the default screenshot. The response lists source/image resource links but no screenshot or readable code. Reading `src/App.tsx` returns **Unknown resource**. The screenshot tool reports that Make files are unsupported. The account is authenticated; accessible auth screens, their assets and interactions could not be inspected. Screenshots of sign-in/registration or an exported source bundle are still required for accurate visual matching. Current forms reuse the repository's logo, semantic tokens and styles and are a functional implementation, not a claimed match to inaccessible screens.
 
 ## Verification recorded for this implementation
@@ -63,7 +69,7 @@ The Figma design-to-code skill was loaded and `get_design_context` was called fo
 - Playwright: 8 tests passed across desktop/mobile Chromium using the production build and cleared Supabase variables.
 - Integrated development preview: sign-in and registration rendered; navigating to `/dashboard` redirected to sign in; no browser warning/error logs were captured in the final check.
 - `.env.local` exists, remains ignored and untracked; `.env.example` and dependency manifests were not changed.
-- Migration execution, database grants/RLS enforcement and the real registration → email confirmation → login → reload/refresh → logout lifecycle have not been verified. No successful live Supabase request is claimed. No remote database changes, account creation, email sending, commit, push or deployment was performed.
+- User-reported live verification (2026-10-16): migration applied manually in `roomly-dev`; profile-unavailable warning disappeared; registration, email confirmation, sign-in, sign-out, protected dashboard access, and session persistence work. Database grants/RLS enforcement, revoked sessions, and expiry-driven refresh remain pending. The agent did not apply remote changes, create accounts, send email, commit, push, or deploy.
 
 ## Official references consulted
 
