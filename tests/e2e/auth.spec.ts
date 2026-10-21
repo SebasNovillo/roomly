@@ -7,7 +7,7 @@ test("account links and unauthenticated dashboard protection", async ({ page }) 
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/sign-in\?next=%2Fdashboard/);
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
-  for (const destination of ["/dashboard/spaces", "/dashboard/bookings"]) {
+  for (const destination of ["/dashboard/spaces", "/dashboard/spaces/atlas-meeting-room?q=Atlas", "/dashboard/bookings"]) {
     await page.goto(destination);
     await expect(page).toHaveURL(/\/sign-in\?next=%2Fdashboard/);
     await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();

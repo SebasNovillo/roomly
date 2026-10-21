@@ -143,6 +143,88 @@ body {
 .mobile-navigation::backdrop { background: #11182755; backdrop-filter: blur(4px); }
 .mobile-sidebar { min-height: 100%; padding: 24px; display: flex; flex-direction: column; }
 .mobile-sidebar .sidebar-brand { margin-inline: 0; }
+.catalog-heading { margin-bottom: 28px; }
+.catalog-heading .catalog-eyebrow { color: var(--color-primary); text-transform: uppercase; letter-spacing: 2px; font-size: 11px; font-weight: 650; margin-bottom: 18px; }
+.catalog-heading h1 { font-size: clamp(28px, 3vw, 38px); line-height: 1.2; letter-spacing: -1.2px; font-weight: 650; overflow-wrap: anywhere; }
+.catalog-heading > p:last-child:not(.catalog-eyebrow) { margin-top: 22px; font-size: 16px; line-height: 1.6; color: #546581; }
+.catalog-filters { padding: 16px; margin-bottom: 26px; position: relative; z-index: 1; }
+.catalog-filters label:not(.amenities-options label), .catalog-field-label { display: block; color: #65748d; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+.catalog-filters input[type="search"], .catalog-filters select, .amenities-select summary { border: 1px solid #dfe5ef; border-radius: 12px; background: white; width: 100%; min-height: 42px; padding: 9px 14px; color: #1b2f4f; font-size: 15px; box-shadow: 0 1px 2px #17213c04; }
+.search-input-wrap { position: relative; }
+.search-input-wrap > svg { position: absolute; left: 13px; top: 12px; color: #94a3bd; }
+.catalog-filters input[type="search"] { padding-left: 40px; }
+.catalog-filters input::placeholder { color: #94a3bd; }
+.catalog-filter-row { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; border-top: 1px solid #f0f2f6; padding-top: 18px; margin-top: 18px; }
+.catalog-field { min-width: 0; }
+.amenities-select { position: relative; }
+.amenities-select summary { display: flex; align-items: center; justify-content: space-between; list-style: none; cursor: pointer; gap: 12px; }
+.amenities-select summary::-webkit-details-marker { display: none; }
+.amenities-select summary > svg { color: #96a3ba; }
+.amenities-options { position: absolute; z-index: 3; top: calc(100% + 7px); right: 0; width: max(100%,245px); max-width: calc(100vw - 68px); padding: 12px; border: 1px solid var(--color-line); border-radius: 12px; background: white; box-shadow: 0 10px 35px #17213c15; }
+.amenities-options label { display: flex; align-items: center; gap: 10px; min-height: 40px; color: #34445f; font-size: 14px; cursor: pointer; }
+.amenities-options input { width: 17px; height: 17px; accent-color: var(--color-primary); }
+.amenities-options p { font-size: 11px; color: var(--color-muted); line-height: 1.5; padding-top: 8px; }
+.filter-actions { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 16px; }
+.filter-actions > p { color: #71809a; font-size: 12px; }
+.filter-actions > div { display: flex; flex-shrink: 0; gap: 20px; align-items: center; }
+.roomly-app .filter-actions .auth-button { min-height: 40px; padding-block: 8px; font-size: 14px; }
+.catalog-results-heading { margin-bottom: 22px; }
+.catalog-results-heading h2 { font-size: 15px; font-weight: 600; }
+.catalog-results-heading p { color: #7485a0; font-size: 12px; margin-top: 4px; }
+.catalog-demo-note { color: #65748b; font-size: 12px; margin: -12px 0 20px; line-height: 1.6; }
+.space-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 20px; }
+.space-card { background: white; border: 1px solid var(--color-line); border-radius: 18px; overflow: hidden; min-width: 0; display: flex; flex-direction: column; box-shadow: 0 3px 15px #1c244505; }
+.space-card-photo { position: relative; overflow: hidden; aspect-ratio: 2 / 1; background: #eff1f7; flex-shrink: 0; }
+.space-card-photo img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; }
+.space-card-photo .space-photo-fallback { position: absolute; inset: 0; min-height: 0; }
+.space-photo-fallback { display: flex; height: 100%; min-height: 160px; width: 100%; gap: 12px; align-items: center; justify-content: center; flex-direction: column; background: #eff1f7; color: #748199; font-size: 13px; }
+.space-card-body { padding: 20px; display: flex; flex-direction: column; flex: 1; }
+.space-type { color: var(--color-primary); font-size: 11px; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600; margin-bottom: 8px; }
+.space-card h2 { font-size: 18px; line-height: 1.4; font-weight: 600; letter-spacing: -.3px; overflow-wrap: anywhere; }
+.space-meta { display: flex; flex-wrap: wrap; gap: 10px 16px; color: #6d7f9c; font-size: 14px; margin-top: 14px; }
+.space-meta > span { display: flex; align-items: center; gap: 6px; }
+.space-amenities { display: flex; flex-wrap: wrap; gap: 7px; list-style: none; padding: 0; margin: 16px 0 22px; }
+.space-amenities li { font-size: 11px; line-height: 1.6; color: #3f587a; background: #f1f4f8; border-radius: 8px; padding: 5px 10px; }
+.space-no-amenities { font-size: 12px; color: var(--color-muted); margin-block: 16px; }
+.roomly-app .space-card .auth-button { width: 100%; min-height: 42px; padding: 9px 12px; margin-top: auto; }
+.catalog-state { display: flex; flex-direction: column; align-items: center; padding: 48px 24px; text-align: center; gap: 18px; }
+.catalog-state > svg { color: var(--color-primary); }
+.catalog-state h1 { font-size: 25px; font-weight: 600; }
+.catalog-state p { max-width: 540px; }
+.catalog-pagination { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 24px; font-size: 14px; margin-top: 24px; }
+.catalog-back { margin-bottom: 20px; }
+.space-detail-layout { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); align-items: start; gap: 24px; }
+.space-detail-gallery { display: grid; gap: 20px; }
+.space-detail-gallery figure { overflow: hidden; }
+.space-detail-gallery img { display: block; width: 100%; height: auto; }
+.space-detail-gallery figcaption { font-size: 12px; line-height: 1.6; color: var(--color-muted); padding: 15px 20px; }
+.space-detail-gallery figcaption > span { display: block; font-size: 11px; overflow-wrap: anywhere; margin-top: 5px; }
+.space-information { padding: 28px; }
+.space-description { margin-top: 18px; white-space: pre-line; overflow-wrap: anywhere; }
+.space-information .space-meta { margin-top: 24px; }
+.space-information .booking-scope-note { padding-top: 20px; margin-top: 20px; border-top: 1px solid var(--color-line); font-size: 12px; }
+.space-detail-no-photo { min-height: 320px; overflow: hidden; }
+.space-detail-no-photo .space-photo-fallback { min-height: 320px; }
+.catalog-loading > p { margin-bottom: 24px; color: var(--color-muted); }
+.catalog-skeleton-panel, .catalog-skeleton-card { background: #e9edf5; border-radius: 18px; }
+.catalog-skeleton-panel { height: 230px; margin-bottom: 30px; }
+.catalog-skeleton-card { height: 380px; }
+@media (min-width: 640px) and (max-width: 1199px) { .space-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 767px) {
+  .catalog-filter-row, .space-detail-layout { grid-template-columns: 1fr; }
+  .filter-actions { align-items: flex-start; flex-direction: column; }
+  .filter-actions > div { width: 100%; justify-content: flex-end; }
+  .amenities-options { width: 100%; max-width: 100%; }
+  .amenities-select[open] .amenities-options { position: static; margin-top: 8px; box-shadow: none; }
+}
+@media (max-width: 639px) {
+  .catalog-heading .catalog-eyebrow { font-size: 10px; margin-bottom: 14px; }
+  .catalog-heading h1 { font-size: 29px; }
+  .catalog-heading > p:last-child:not(.catalog-eyebrow) { font-size: 14px; margin-top: 16px; }
+  .space-grid { grid-template-columns: 1fr; }
+  .space-card-body { padding: 20px; }
+  .catalog-filters { padding: 16px; }
+}
 @media (max-width: 1023px) {
   .desktop-sidebar { display: none; }
   .mobile-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--color-line); background: white; }

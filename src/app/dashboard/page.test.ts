@@ -1,4 +1,5 @@
 import { beforeEach, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 const mocks = vi.hoisted(() => ({ from: vi.fn(), getUser: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: async () => ({ auth: mocks, from: mocks.from }) }));
 vi.mock("@/lib/env", () => ({ getSupabaseEnvironment: () => ({}) }));
@@ -9,8 +10,9 @@ import DashboardPage from "./page";
 import DashboardLayout from "./layout";
 import SpacesPage from "./spaces/page";
 import BookingsPage from "./bookings/page";
+import SpaceDetailPage from "./spaces/[slug]/page";
 beforeEach(() => vi.clearAllMocks());
-it.each([DashboardPage, SpacesPage, BookingsPage, () => DashboardLayout({ children: null })])("redirects unauthenticated users before reading profiles or rendering protected content (%#)", async (render) => {
+it.each([DashboardPage, () => SpacesPage({}), BookingsPage, () => DashboardLayout({ children: null }), () => SpaceDetailPage({ params: Promise.resolve({ slug: "atlas-meeting-room" }), searchParams: Promise.resolve({}) })])("redirects unauthenticated users before reading profiles or rendering protected content (%#)", async (render) => {
   mocks.getUser.mockResolvedValue({ data: { user: null }, error: null });
   await expect(render()).rejects.toThrow("REDIRECT:/sign-in?next=%2Fdashboard");
   expect(mocks.from).not.toHaveBeenCalled();

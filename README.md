@@ -69,7 +69,7 @@ src/
   components/          Reusable UI, initially the Roomly wordmark
   features/
     auth/              Server auth actions and Zod form validation
-    spaces/            Reserved for discovery and space details
+    spaces/            Authenticated catalog queries, URL filters and detail UI
     bookings/          Reserved for booking rules and workflows
     profile/           Profile scope notes; migration in supabase/migrations
   lib/
@@ -77,9 +77,11 @@ src/
     supabase/client.ts Browser client factory, guarded by client-only
     supabase/server.ts Request-scoped server client, guarded by server-only
   proxy.ts             Next.js 16 session refresh for auth/dashboard routes
-supabase/migrations/   Versioned profile schema, triggers, grants and RLS
+supabase/migrations/   Versioned profile/catalog schemas, triggers, grants and RLS
+supabase/seeds/        Optional, repeatable fictional portfolio catalog seed
 docs/authentication.md Supabase setup, design limitations and manual checks
 tests/e2e/             Production home and authentication tests
+tests/catalog-ui/      Isolated labeled catalog UI verification (fixtures only)
 ```
 
 Routes and layouts are Server Components by default. Add Client Components only for interaction requiring browser state or APIs. Import browser and server factories directly from their respective files; do not re-export both through a shared barrel. Future backend work belongs in Next.js Route Handlers, Server Actions, and server-only feature modules; there is no Express server.
@@ -92,13 +94,15 @@ The proxy uses `auth.getClaims()`; the dashboard and sign-out action independent
 
 Initial tokens in `src/app/globals.css` provide pale gray `background`, white `surface`, navy `ink`, indigo `primary`, and shared muted, border, and focus colors. Tailwind exposes them through semantic utility names. The home page has accessible landmarks, keyboard focus styles, an introduction anchor, and reduced-motion support.
 
-The prior inspection of the [Figma Make reference](https://www.figma.com/make/Fwdsc61ZyEp367TAkDlSH8/Design-Explore-Spaces-Screen) verified pale backgrounds, white rounded surfaces, purple actions, and English text. Its integration listed eight source files and nineteen PNG resources, but reading source and assets failed with “Unknown resource.” Browser preview access did not provide reusable source files. The local repository contained only Git metadata and no AGENTS.md instructions or assets when setup began. This page uses those verified visual findings and the requested palette, rather than claiming to reproduce an inaccessible screen. Original photos and components can be reused when an accessible export is available.
+The initial inspection of the [Figma Make reference](https://www.figma.com/make/Fwdsc61ZyEp367TAkDlSH8/Design-Explore-Spaces-Screen) verified pale backgrounds, white rounded surfaces, purple actions, and English text. Its integration listed source/image resources, but reading them failed with “Unknown resource.” On 2026-10-20, the attached catalog screenshot and browser preview provided all six catalog cards and their original Unsplash URLs. Those photos are now local assets under `public/images/spaces`; see `docs/spaces.md` for provenance. Reusable Figma source components/styles remain inaccessible, so exact source-level fidelity is not claimed.
 
 ## Current scope and CI
 
 Implemented: application setup, introductory home page, shared styles, Supabase SSR authentication, server form validation, confirmation endpoint, protected dashboard, sign out, local profile migration, Vitest and Playwright tests, npm scripts and GitHub Actions. Remote configuration and migration are manual steps documented in `docs/authentication.md`; live account lifecycle and database/RLS checks remain manual.
 
-Deferred: matching inaccessible Figma authentication screens, application sidebar, booking persistence, availability, cancellation, profile editing and all Admin features. There are no demo passwords, fake sessions, account selectors or localStorage booking records.
+The responsive authenticated shell and Supabase-backed Explore spaces catalog/detail pages are implemented. See [catalog setup, seed steps, photo sources and pending checks](docs/spaces.md). The new catalog migration and optional seed are prepared locally and have not been applied remotely. Figma source access failed, but the attached screenshot and rendered preview provided all six card records and original photos.
+
+Deferred: matching inaccessible Figma authentication screens, booking persistence, availability, cancellation, profile editing and all Admin features. There are no demo passwords, fake production sessions, account selectors or localStorage booking records.
 
 The GitHub Actions workflow installs the pinned npm version, runs `npm ci`, lint, type checking, unit tests, and a production build without live credentials. End-to-end tests are available locally and can be added to CI with browser installation later. Local dependencies, environment files, builds, test reports, traces, and temporary tooling are ignored.
 

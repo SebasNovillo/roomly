@@ -35,7 +35,7 @@ export function AppShell({ name, children }: { name: string; children: React.Rea
     return <>
       <div className="sidebar-brand"><RoomlyLogo />{mobile && <button className="shell-icon-button" aria-label="Close navigation" onClick={() => dialog.current?.close()}><X size={20} aria-hidden="true" /></button>}</div>
       <nav aria-label={mobile ? "Mobile navigation" : "Main navigation"}>
-        {destinations.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className="sidebar-link" aria-current={pathname === href ? "page" : undefined} title={collapsed && !mobile ? label : undefined} onClick={() => dialog.current?.close()}><Icon size={19} aria-hidden="true" /><span className="sidebar-label">{label}</span></Link>)}
+        {destinations.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className="sidebar-link" aria-current={pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`)) ? "page" : undefined} title={collapsed && !mobile ? label : undefined} onClick={() => dialog.current?.close()}><Icon size={19} aria-hidden="true" /><span className="sidebar-label">{label}</span></Link>)}
       </nav>
       <div className="sidebar-bottom">
         <div className="sidebar-user"><span className="user-avatar" aria-hidden="true">{initials}</span><div className="sidebar-label"><p className="user-name">{name}</p><p className="user-caption">Member</p></div></div>

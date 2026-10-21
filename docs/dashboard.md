@@ -5,7 +5,7 @@ Implemented on 2026-10-16 using the existing Next.js application, React, Lucide 
 ## Routes and identity
 
 - `/dashboard`: real profile name, date in America/Chicago (updates while open), next-booking and upcoming-plans empty states, quick actions, and booking overview with unavailable values rather than fabricated counts.
-- `/dashboard/spaces`: intentional space-discovery placeholder explaining what is coming, with links back to the dashboard and bookings.
+- `/dashboard/spaces`: replaced by the Supabase-backed catalog and `/dashboard/spaces/[slug]` detail route on 2026-10-20; see `docs/spaces.md` for the new manual migration/seed and verification status.
 - `/dashboard/bookings`: intentional booking-management placeholder with useful navigation.
 
 The layout and each page verify identity through `getViewer()` before rendering. The helper uses the existing request-scoped Supabase client and `auth.getUser()`, then selects only the verified user's profile name. It retains the profile-unavailable fallback. React cache deduplicates within a request. No booking data, tables, remote migrations, or mock authentication were added. Sign-out still uses the existing POST Server Action.
@@ -25,4 +25,4 @@ The supplied Figma Make project was reachable in the browser preview. Its dashbo
 - Existing signed-in browser session: dashboard displayed the real profile name; desktop collapse and the Explore spaces route worked. No accounts were created and no sign-out was triggered during these checks.
 - Isolated actual-component layout checks at 1440px, 768px, 390px, and 320px passed: no horizontal overflow, collapse, mobile dialog opening, Escape/focus return, placeholder navigation, desktop resize cleanup, and no page errors. Screenshots were visually inspected. The local harness adapts Next routing and prevents invoking the sign-out action; it tests UI behavior, not live authentication. The in-app browser viewport override did not change its actual reported size, so signed-in mobile integration was not independently verified there.
 
-Pending: booking/space implementation, full desktop reference comparison, signed-in mobile integration, the default Turbopack worker issue, and the unverified security checks listed in `authentication.md`. No migration rerun, remote database changes, commit, push, or deployment occurred.
+Pending from the shell work: booking implementation, full desktop reference comparison, signed-in mobile integration, the default Turbopack worker issue, and the unverified security checks listed in `authentication.md`. The subsequent space catalog's checks and outstanding database setup are documented separately in `spaces.md`. No migration rerun, remote database changes, commit, push, or deployment occurred during the shell work.
