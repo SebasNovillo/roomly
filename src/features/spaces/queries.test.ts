@@ -13,6 +13,8 @@ beforeEach(() => {
   mocks.getViewer.mockResolvedValue({ name: "Verified user" });
   mocks.createClient.mockResolvedValue({ from: mocks.from });
   for (const key of ["from", "select", "eq", "ilike", "gte", "contains", "order"] as const) mocks[key].mockReturnValue(mocks);
+  const rows = Promise.resolve({ data: [], error: null });
+  mocks.order.mockReturnValue({ ...mocks, then: rows.then.bind(rows) });
   mocks.range.mockResolvedValue({ data: portfolioSpaces, error: null, count: 6 });
   mocks.maybeSingle.mockResolvedValue({ data: portfolioSpaces[0], error: null });
 });
@@ -53,7 +55,7 @@ describe("session-aware catalog queries (mocked Supabase)", () => {
     expect(await getCatalog(parseFilters({ page: "999" }))).toEqual({ ok: true, spaces: [], total: 6 });
   });
   it("uses the same active database record for detail and distinguishes missing from failure", async () => {
-    expect(await getSpace("atlas-meeting-room")).toEqual({ ok: true, space: portfolioSpaces[0] });
+    expect(await getSpace("atlas-meeting-room")).toEqual({ ok: true, space: { ...portfolioSpaces[0], openingHours: { ok: true, rows: [] }, rules: { ok: true, rows: [] } } });
     expect(mocks.eq).toHaveBeenCalledWith("slug", "atlas-meeting-room");
     expect(mocks.eq).toHaveBeenCalledWith("is_active", true);
     mocks.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
@@ -64,5 +66,13 @@ describe("session-aware catalog queries (mocked Supabase)", () => {
   it("does not query malformed slugs", async () => {
     expect(await getSpace("../bad")).toEqual({ ok: true, space: null });
     expect(mocks.from).not.toHaveBeenCalled();
+  });
+  it("retains the catalog record while reporting missing detail tables separately", async () => {
+    mocks.order.mockResolvedValueOnce({ data: null, error: { code: "PGRST205" } });
+    const result = await getSpace("atlas-meeting-room");
+    expect(result.ok && result.space?.name).toBe("Atlas Meeting Room");
+    expect(result.ok && result.space?.openingHours).toEqual({ ok: false });
+    expect(result.ok && result.space?.rules).toEqual({ ok: true, rows: [] });
+    expect(mocks.eq).toHaveBeenCalledWith("space_id", portfolioSpaces[0].id);
   });
 });

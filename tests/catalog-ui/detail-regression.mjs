@@ -1,0 +1,60 @@
+import { expect } from "@playwright/test";
+import path from "node:path";
+
+export async function verifySpaceDetail(page, base, output) {
+  const query = "?q=Atlas&minCapacity=8&amenity=display";
+  for (const width of [1574, 390, 320]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto(`${base}/atlas-meeting-room${query}`);
+    await expect(page.locator(".space-detail-heading")).toContainText("Floor 2");
+    await expect(page.locator(".space-detail-heading")).toContainText("8 people");
+    const thumbnails = page.getByRole("group", { name: "Atlas Meeting Room gallery thumbnails" }).getByRole("button");
+    await expect(thumbnails).toHaveCount(3);
+    await expect(thumbnails.nth(0)).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText("Photo 1 of 3", { exact: true })).toBeVisible();
+    await thumbnails.nth(1).click();
+    await expect(thumbnails.nth(1)).toHaveAttribute("aria-pressed", "true");
+    await expect(thumbnails.nth(0)).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator(".gallery-main-photo img")).toHaveAttribute("src", "/images/spaces/atlas-meeting-room-2.jpg");
+    await thumbnails.nth(1).press("ArrowRight");
+    await expect(thumbnails.nth(2)).toBeFocused();
+    await expect(page.getByText("Photo 3 of 3", { exact: true })).toBeVisible();
+    await thumbnails.nth(2).press("Home");
+    await expect(thumbnails.nth(0)).toBeFocused();
+    await thumbnails.nth(1).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("Photo 2 of 3", { exact: true })).toBeVisible();
+    await thumbnails.nth(1).press("End");
+    await expect(thumbnails.nth(2)).toBeFocused();
+    await thumbnails.nth(2).press("Home");
+    await expect(page.locator(".detail-amenities li")).toHaveCount(3);
+    await expect(page.locator(".opening-hours > div")).toHaveCount(7);
+    await expect(page.locator(".opening-hours > div").nth(0)).toHaveText("Sunday10:00 AM–4:00 PM");
+    await expect(page.locator(".opening-hours > div").nth(5)).toHaveText("Friday8:00 AM–6:00 PM");
+    await expect(page.locator(".space-rules li")).toHaveCount(4);
+    await expect(page.getByRole("heading", { name: /^Availability/ })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Choose your time" })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await expect.poll(() => page.locator(".space-detail-gallery img").evaluateAll(images => images.every(image => image.complete && image.naturalWidth > 0))).toBe(true);
+    if (width !== 320) await page.screenshot({ path: path.join(output, `detail-${width === 390 ? "mobile" : "desktop"}.png`), fullPage: true });
+    await expect(page.getByRole("link", { name: "Back to spaces" })).toHaveAttribute("href", `/dashboard/spaces${query}`);
+    await page.getByRole("link", { name: "Back to spaces" }).click();
+    await expect(page.getByText("1 space found", { exact: true })).toBeVisible();
+  }
+  await page.goto(`${base}/willow-study-room`);
+  await expect(page.getByText("Photo 1 of 1", { exact: true })).toBeVisible();
+  await expect(page.locator(".gallery-thumbnails")).toHaveCount(0);
+  await expect(page.getByText("Not configured", { exact: true })).toHaveCount(7);
+  await expect(page.getByText("Closed", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("No space rules have been published yet.")).toBeVisible();
+  await page.goto(`${base}/willow-study-room?fixtureState=detail-closed`);
+  await expect(page.getByText("Closed", { exact: true })).toHaveCount(1);
+  await expect(page.getByText("Not configured", { exact: true })).toHaveCount(6);
+  await page.goto(`${base}/atlas-meeting-room?fixtureState=detail-unavailable`);
+  await expect(page.getByText("Opening hours are temporarily unavailable.")).toBeVisible();
+  await expect(page.getByText("Space rules are temporarily unavailable.")).toBeVisible();
+  await expect(page.getByText("Not configured", { exact: true })).toHaveCount(0);
+  await page.goto(`${base}/atlas-meeting-room?fixtureState=no-images`);
+  await expect(page.getByText("Photo unavailable", { exact: true })).toBeVisible();
+  await expect(page.locator(".gallery-thumbnails")).toHaveCount(0);
+}

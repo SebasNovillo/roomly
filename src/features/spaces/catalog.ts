@@ -72,4 +72,3 @@ export const spaceSchema = z.object({
 export type Space = z.infer<typeof spaceSchema>;
 export type CatalogFailure = { ok: false; kind: "setup" | "load" };
 export type CatalogResult = { ok: true; spaces: Space[]; total: number } | CatalogFailure;
-export type DetailResult = { ok: true; space: Space | null } | CatalogFailure;

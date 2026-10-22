@@ -1,11 +1,32 @@
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-import { catalogHref, spaceTypes, type CatalogFilters, type Space } from "../catalog";
-import { SpaceProperties } from "./catalog-view";
-import { SpacePhoto } from "./space-photo";
+import { ArrowLeft, Check, MapPin, Monitor, Plug, Presentation, Users, Video, Wifi } from "lucide-react";
+import { amenityLabels, catalogHref, spaceTypes, type CatalogFilters } from "../catalog";
+import { formatOpeningTime, weekdays, type DetailedSpace } from "../details";
+import { SpaceGallery } from "./space-gallery";
 
-export function SpaceDetail({ space, filters }: { space: Space; filters: CatalogFilters }) {
-  return <div className="space-detail"><Link className="text-link catalog-back" href={catalogHref(filters)}><ArrowLeft size={16} aria-hidden="true" />Back to spaces</Link><header className="catalog-heading"><p className="catalog-eyebrow">{spaceTypes[space.type]}</p><h1>{space.name}</h1>{space.is_demo && <p className="catalog-demo-note">Fictional portfolio space · Photos are illustrative.</p>}</header>
-    <div className="space-detail-layout"><section className="space-detail-gallery" aria-label="Space photos">{space.images.length ? space.images.map((image, index) => <figure className="dashboard-card" key={image.sort_order}><SpacePhoto image={image} priority={index === 0} /><figcaption>{image.alt_text}{image.source_credit && <span>{image.source_credit}</span>}</figcaption></figure>) : <div className="space-detail-no-photo dashboard-card"><SpacePhoto /></div>}</section><section className="space-information dashboard-card"><h2>About this space</h2><p className="space-description">{space.description}</p><SpaceProperties space={space} /><p className="booking-scope-note">This is the space catalog. Reservations and availability checks are not offered yet.</p></section></div>
+const amenityIcons = { "wi-fi": Wifi, whiteboard: Presentation, display: Monitor, "power-outlets": Plug, "video-conferencing": Video };
+
+export function SpaceDetail({ space, filters }: { space: DetailedSpace; filters: CatalogFilters }) {
+  return <div className="space-detail">
+    <Link className="text-link catalog-back" href={catalogHref(filters)}><ArrowLeft size={16} aria-hidden="true" />Back to spaces</Link>
+    <header className="catalog-heading space-detail-heading"><p className="catalog-eyebrow">{spaceTypes[space.type]}</p><h1>{space.name}</h1>
+      <div className="space-meta"><span><MapPin size={16} aria-hidden="true" />Floor {space.floor}</span><span><Users size={17} aria-hidden="true" />{space.capacity} {space.capacity === 1 ? "person" : "people"}</span></div>
+      {space.is_demo && <p className="detail-demo-note">Fictional portfolio space · Photos are illustrative.</p>}
+    </header>
+    <SpaceGallery key={space.id} name={space.name} images={space.images} />
+    <section className="space-information dashboard-card"><h2>About this space</h2><p className="space-description">{space.description}</p></section>
+    <section className="space-information dashboard-card"><h2>Amenities</h2>{space.amenities.length ? <ul className="detail-amenities">{space.amenities.map(amenity => {
+      const Icon = amenityIcons[amenity];
+      return <li key={amenity}><span><Icon size={21} strokeWidth={1.6} aria-hidden="true" /></span>{amenityLabels[amenity]}</li>;
+    })}</ul> : <p className="detail-empty">No amenities are listed for this space.</p>}</section>
+    <div className="space-detail-bottom">
+      <section className="space-information dashboard-card"><h2>Opening hours</h2><p className="hours-timezone">All times in America/Chicago</p>
+        {!space.openingHours.ok ? <p role="status" className="detail-empty">Opening hours are temporarily unavailable.</p> : <dl className="opening-hours">{weekdays.map((label, weekday) => {
+          const row = space.openingHours.ok ? space.openingHours.rows.find(row => row.weekday === weekday) : undefined;
+          return <div key={label}><dt>{label}</dt><dd>{!row ? <span className="hours-unconfigured">Not configured</span> : row.is_closed ? "Closed" : <><time dateTime={row.opens_at}>{formatOpeningTime(row.opens_at)}</time>–<time dateTime={row.closes_at}>{formatOpeningTime(row.closes_at)}</time></>}</dd></div>;
+        })}</dl>}
+      </section>
+      <section className="space-information dashboard-card"><h2>Space rules</h2>{!space.rules.ok ? <p role="status" className="detail-empty">Space rules are temporarily unavailable.</p> : space.rules.rows.length ? <ol className="space-rules">{[...space.rules.rows].sort((a, b) => a.sort_order - b.sort_order).map(rule => <li key={rule.sort_order}><Check size={17} aria-hidden="true" /><span>{rule.rule_text}</span></li>)}</ol> : <p className="detail-empty">No space rules have been published yet.</p>}</section>
+    </div>
   </div>;
 }

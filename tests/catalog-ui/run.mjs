@@ -6,6 +6,7 @@ import { readFile, readdir, mkdir, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import path from "node:path";
 import { verifyAmenitiesSummary } from "./amenities-regression.mjs";
+import { verifySpaceDetail } from "./detail-regression.mjs";
 
 const root = process.cwd();
 const fixture = path.join(root, "tests/catalog-ui");
@@ -104,6 +105,7 @@ try {
   await expect(page.getByRole("heading", { name: "We couldn’t load the spaces" })).toBeVisible();
   await page.goto(`${base}/missing-room`);
   await expect(page.getByRole("heading", { name: "Space not found" })).toBeVisible();
+  await verifySpaceDetail(page, base, output);
   await page.route("**/images/spaces/atlas-meeting-room.jpg", route => route.abort());
   await page.goto(base);
   await expect(page.locator(".space-card").first().getByText("Photo unavailable")).toBeVisible();
