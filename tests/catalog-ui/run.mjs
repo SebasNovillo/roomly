@@ -7,6 +7,7 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { verifyAmenitiesSummary } from "./amenities-regression.mjs";
 import { verifySpaceDetail } from "./detail-regression.mjs";
+import { verifyBookingFlow } from "./booking-regression.mjs";
 
 const root = process.cwd();
 const fixture = path.join(root, "tests/catalog-ui");
@@ -16,6 +17,8 @@ await build({ configFile: false, root: fixture, resolve: { alias: [
   { find: /^next\/navigation(?:\.js)?$/, replacement: path.join(fixture, "adapters/navigation.ts") },
   { find: /^next\/image(?:\.js)?$/, replacement: path.join(fixture, "adapters/image.tsx") },
   { find: "@/features/auth/actions", replacement: path.join(fixture, "adapters/actions.ts") },
+  { find: "@/features/bookings/actions", replacement: path.join(fixture, "adapters/bookings.ts") },
+  { find: /^\.\.\/actions$/, replacement: path.join(fixture, "adapters/bookings.ts") },
   { find: "@", replacement: path.join(root, "src") },
 ] }, build: { outDir: dist, emptyOutDir: true }, oxc: { jsx: { runtime: "automatic" } }, logLevel: "error" });
 const cssRoot = path.join(root, ".next/static/css");
@@ -106,6 +109,7 @@ try {
   await page.goto(`${base}/missing-room`);
   await expect(page.getByRole("heading", { name: "Space not found" })).toBeVisible();
   await verifySpaceDetail(page, base, output);
+  await verifyBookingFlow(page, base, output);
   await page.route("**/images/spaces/atlas-meeting-room.jpg", route => route.abort());
   await page.goto(base);
   await expect(page.locator(".space-card").first().getByText("Photo unavailable")).toBeVisible();

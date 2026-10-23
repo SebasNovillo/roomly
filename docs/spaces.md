@@ -1,5 +1,7 @@
 # Explore spaces catalog
 
+**2026-10-22 follow-up:** the user reports the space-details migration and Atlas detail update seed are now manually applied, with Atlas's three photos, weekly hours and rules present. Earlier unapplied/pending notes below are historical, not new verification of security policies. The detail page now includes the first database-backed booking flow; see [bookings.md](bookings.md) for its new additive migration, rules, privacy model, checks and pending live verification. Catalog date/time filtering remains out of scope. No previous migration or seed was changed.
+
 Implemented 2026-10-20. Authentication, the existing dashboard layout/sidebar, session-aware Supabase clients, and POST sign-out remain in place. No migration, seed, bucket, or Supabase setting was applied remotely by this task.
 
 **User-reported verification, 2026-10-21:** the catalog migration and portfolio seed were manually applied. Live catalog reads, Atlas search, combined capacity/amenity filtering, and detail/back navigation were manually verified. The amenities summary fix is resolved. These are the user's live results, separate from agent-run mocked/isolated checks. They do not verify the new detail migration, new hours/rules policies, or gallery updates below.

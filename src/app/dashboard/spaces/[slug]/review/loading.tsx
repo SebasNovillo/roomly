@@ -1,0 +1,1 @@
+export default function LoadingReview() { return <div className="dashboard-card catalog-state" role="status"><h1>Loading booking review…</h1><p>Checking your selection and the latest availability.</p></div>; }
