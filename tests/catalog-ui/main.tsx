@@ -10,6 +10,9 @@ import { bookingHref, parseSelection, selectionIssue } from "../../src/features/
 import { ReviewView } from "../../src/features/bookings/components/review-view";
 import { ConfirmationView } from "../../src/features/bookings/components/confirmation-view";
 import { bookingFixtureDay, bookingFixtureId } from "../fixtures/bookings";
+import { BookingsView } from "../../src/features/bookings/components/bookings-view";
+import { parseBookingPage } from "../../src/features/bookings/my-bookings";
+import { cancellableFixtureId,myBookingFixtures,myBookingsFixture,myBookingsNow } from "../fixtures/my-bookings";
 
 const params = new URLSearchParams(location.search);
 const filters = parseFilters({ ...Object.fromEntries(params), amenity: params.getAll("amenity") });
@@ -29,7 +32,13 @@ const day = bookingFixtureDay;
 const bookingProps = params.has("bookingPreview") || params.has("date") ? { slug,filters,initialSelection:selection,initialDay:day } : undefined;
 const review = location.pathname.endsWith("/review");
 const confirmation = location.pathname.includes("/reservations/");
-const content = confirmation ? <ConfirmationView reservation={{ id:bookingFixtureId,space_id:portfolioDetails[0].id,starts_at:"2027-01-05T15:00:00Z",ends_at:"2027-01-05T16:00:00Z",status:"confirmed" }} space={portfolioDetails[0]} />
+const myBookings = location.pathname === "/dashboard/bookings";
+const cancelledIds:string[] = myBookings || confirmation ? await fetch("/__fixtures/cancellation").then(response=>response.json()) : [];
+const {tab,page}=parseBookingPage(Object.fromEntries(params));
+const record=myBookingFixtures.find(row=>row.id === location.pathname.split("/").at(-1));
+const detailRecord=record && cancelledIds.includes(record.id) ? {...record,status:"cancelled" as const,cancelled_at:myBookingsNow} : record;
+const content = myBookings ? <BookingsView tab={tab} result={myBookingsFixture(tab,page,cancelledIds,params.get("fixtureBookings"))} successReference={params.get("cancelled") === cancellableFixtureId && cancelledIds.includes(cancellableFixtureId) ? cancellableFixtureId : undefined} />
+  : confirmation ? <ConfirmationView reservation={detailRecord ?? { id:bookingFixtureId,space_id:portfolioDetails[0].id,starts_at:"2027-01-05T15:00:00Z",ends_at:"2027-01-05T16:00:00Z",status:"confirmed" }} space={portfolioDetails[0]} now={detailRecord ? myBookingsNow : "2027-01-05T12:00:00Z"} />
   : review && space ? <ReviewView space={space} selection={selection} requestId={params.get("request") ?? bookingFixtureId} changeHref={bookingHref(space.slug,filters,selection)} issue={selectionIssue(selection,day,Date.parse("2027-01-05T12:00:00Z"))} />
   : slug ? space ? <SpaceDetail space={space} filters={filters} booking={bookingProps} /> : <SpaceNotFound /> : <CatalogView filters={filters} result={result} />;
 createRoot(document.getElementById("root")!).render(<AppShell name="UI test account">{content}</AppShell>);

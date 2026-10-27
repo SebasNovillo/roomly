@@ -8,6 +8,7 @@ import path from "node:path";
 import { verifyAmenitiesSummary } from "./amenities-regression.mjs";
 import { verifySpaceDetail } from "./detail-regression.mjs";
 import { verifyBookingFlow } from "./booking-regression.mjs";
+import { verifyMyBookings } from "./my-bookings-regression.mjs";
 
 const root = process.cwd();
 const fixture = path.join(root, "tests/catalog-ui");
@@ -18,14 +19,25 @@ await build({ configFile: false, root: fixture, resolve: { alias: [
   { find: /^next\/image(?:\.js)?$/, replacement: path.join(fixture, "adapters/image.tsx") },
   { find: "@/features/auth/actions", replacement: path.join(fixture, "adapters/actions.ts") },
   { find: "@/features/bookings/actions", replacement: path.join(fixture, "adapters/bookings.ts") },
+  { find: /^\.\.\/cancellation$/, replacement: path.join(fixture, "adapters/cancellation.ts") },
   { find: /^\.\.\/actions$/, replacement: path.join(fixture, "adapters/bookings.ts") },
   { find: "@", replacement: path.join(root, "src") },
-] }, build: { outDir: dist, emptyOutDir: true }, oxc: { jsx: { runtime: "automatic" } }, logLevel: "error" });
+] }, build: { target:"esnext",outDir: dist, emptyOutDir: true }, oxc: { jsx: { runtime: "automatic" } }, logLevel: "error" });
 const cssRoot = path.join(root, ".next/static/css");
 const cssFiles = (await readdir(cssRoot)).filter(file => file.endsWith(".css"));
 await writeFile(path.join(dist, "styles.css"), (await Promise.all(cssFiles.map(file => readFile(path.join(cssRoot, file), "utf8")))).join("\n"));
+const cancelledFixtureIds=new Set();
 const server = createServer(async (req, res) => {
   const requestPath = new URL(req.url, "http://localhost").pathname;
+  if(requestPath === "/__fixtures/cancellation") {
+    if(req.method === "DELETE") cancelledFixtureIds.clear();
+    if(req.method === "POST") {
+      let id="";for await(const chunk of req) id+=chunk;
+      if(id !== "bd000000-0000-4000-8000-000000000001") {res.statusCode=400;res.end();return;}
+      cancelledFixtureIds.add(id);
+    }
+    res.setHeader("Content-Type","application/json");res.setHeader("Cache-Control","no-store");res.end(JSON.stringify([...cancelledFixtureIds]));return;
+  }
   let file = path.join(dist, "index.html");
   if (/^\/images\/spaces\/[a-z0-9-]+\.jpg$/.test(requestPath)) file = path.join(root, "public", requestPath);
   else if (requestPath === "/styles.css" || /^\/assets\/[a-zA-Z0-9_.-]+$/.test(requestPath)) file = path.join(dist, requestPath);
@@ -110,6 +122,7 @@ try {
   await expect(page.getByRole("heading", { name: "Space not found" })).toBeVisible();
   await verifySpaceDetail(page, base, output);
   await verifyBookingFlow(page, base, output);
+  await verifyMyBookings(page,"http://127.0.0.1:3131/dashboard/bookings",output);
   await page.route("**/images/spaces/atlas-meeting-room.jpg", route => route.abort());
   await page.goto(base);
   await expect(page.locator(".space-card").first().getByText("Photo unavailable")).toBeVisible();

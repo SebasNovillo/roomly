@@ -2,16 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { portfolioDetails } from "../../../tests/fixtures/space-details";
 import { bookingFixtureDay, bookingFixtureId, bookingFixtureSelection } from "../../../tests/fixtures/bookings";
-const mocks = vi.hoisted(()=>({getViewer:vi.fn(),getSpace:vi.fn(),getBookingDay:vi.fn(),getReservation:vi.fn(),redirect:vi.fn(),notFound:vi.fn(),createClient:vi.fn()}));
+const mocks = vi.hoisted(()=>({getViewer:vi.fn(),getSpace:vi.fn(),getBookingDay:vi.fn(),getReservation:vi.fn(),getMyBookings:vi.fn(),redirect:vi.fn(),notFound:vi.fn(),createClient:vi.fn()}));
 vi.mock("@/features/auth/viewer",()=>({getViewer:mocks.getViewer}));
 vi.mock("@/features/spaces/queries",()=>({getSpace:mocks.getSpace}));
-vi.mock("@/features/bookings/queries",()=>({getBookingDay:mocks.getBookingDay,getReservation:mocks.getReservation}));
+vi.mock("@/features/bookings/queries",()=>({getBookingDay:mocks.getBookingDay,getReservation:mocks.getReservation,getMyBookings:mocks.getMyBookings}));
 vi.mock("@/lib/supabase/server",()=>({createClient:mocks.createClient}));
 vi.mock("next/navigation",()=>({redirect:mocks.redirect,notFound:mocks.notFound}));
 vi.mock("@/features/bookings/components/review-view",()=>({ReviewView:()=>null}));
 vi.mock("@/features/bookings/components/confirmation-view",()=>({ConfirmationView:()=>null}));
+vi.mock("@/features/bookings/components/bookings-view",()=>({BookingsView:()=>null}));
 import ReviewPage from "@/app/dashboard/spaces/[slug]/review/page";
 import ConfirmationPage from "@/app/dashboard/reservations/[id]/page";
+import MyBookingsPage from "@/app/dashboard/bookings/page";
 const reviewArgs = () => ({params:Promise.resolve({slug:"atlas-meeting-room"}),searchParams:Promise.resolve({...bookingFixtureSelection,request:bookingFixtureId,q:"Atlas",amenity:"display"})});
 beforeEach(()=>{
   vi.resetAllMocks(); mocks.getViewer.mockResolvedValue({name:"Member"}); mocks.getSpace.mockResolvedValue({ok:true,space:portfolioDetails[0]});
@@ -51,5 +53,15 @@ describe("protected booking pages with mocked session and database reads",()=>{
     await expect(ReviewPage(reviewArgs())).rejects.toThrow("AUTH_REDIRECT");
     await expect(ConfirmationPage({params:Promise.resolve({id:bookingFixtureId})})).rejects.toThrow("AUTH_REDIRECT");
     expect(mocks.getReservation).not.toHaveBeenCalled(); expect(mocks.getSpace).not.toHaveBeenCalled();
+  });
+  it("only shows a cancellation banner for an owner-readable cancelled record",async()=>{
+    mocks.getMyBookings.mockResolvedValue({ok:false,kind:"setup"});
+    const args=()=>({searchParams:Promise.resolve({tab:"cancelled",cancelled:bookingFixtureId})});
+    let view=await MyBookingsPage(args());expect(view.props.successReference).toBeUndefined();
+    mocks.getReservation.mockResolvedValue({ok:true,reservation:{id:bookingFixtureId,status:"confirmed"}});
+    view=await MyBookingsPage(args());expect(view.props.successReference).toBeUndefined();
+    mocks.getReservation.mockResolvedValue({ok:true,reservation:{id:bookingFixtureId,status:"cancelled"}});
+    view=await MyBookingsPage(args());expect(view.props.successReference).toBe(bookingFixtureId);
+    expect(mocks.getMyBookings).toHaveBeenCalledWith("cancelled",1);
   });
 });

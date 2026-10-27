@@ -3,6 +3,20 @@ import { z } from "zod";
 import { getViewer } from "@/features/auth/viewer";
 import { createClient } from "@/lib/supabase/server";
 import { dateSchema, daySchema, reservationSchema, type DayResult } from "./model";
+import { bookingListSchema, type BookingListResult, type BookingTab } from "./my-bookings";
+
+export function getBookingTime() { return new Date().toISOString(); }
+
+export async function getMyBookings(tab: BookingTab, page: number): Promise<BookingListResult> {
+  await getViewer();
+  try {
+    const supabase = await createClient();
+    const {data,error} = await supabase.rpc("my_bookings",{p_tab:tab,p_page:page});
+    if (error) return {ok:false,kind:["42883","42P01","42703","PGRST202"].includes(error.code) ? "setup" : "service"};
+    const parsed = bookingListSchema.safeParse(data);
+    return parsed.success ? {ok:true,list:parsed.data} : {ok:false,kind:"service"};
+  } catch { return {ok:false,kind:"service"}; }
+}
 
 export async function getBookingDay(spaceId: string, date: string): Promise<DayResult> {
   await getViewer();

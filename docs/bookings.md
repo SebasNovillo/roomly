@@ -1,5 +1,7 @@
 # Booking flow
 
+Extended 2026-10-26 with My bookings and owner-only cancellation. The sections about the initial 2026-10-22 implementation and its verification remain historical; the new migration and checks are documented below. No hosted reservation was created or cancelled by this task, and no remote migration/settings change was made.
+
 Implemented 2026-10-22. Database SQL is prepared locally only. The agent has not applied a remote migration, created a real booking/account, sent email, or changed Supabase settings. No service-role key is used.
 
 ## Existing setup and migration order
@@ -32,7 +34,7 @@ Availability refreshes on date changes and every 30 seconds, with abort/stale-re
 - Start/end must be on the same local date in 30-minute increments; actual elapsed duration is at least 30 minutes. End must follow start. Start must be strictly after database `clock_timestamp()` at confirmation.
 - The entire interval must fit within that weekday's explicit open row. Missing rows are unconfigured; explicit closed rows are closed. Existing schedules support one same-day interval, no overnight/24:00 endpoints. No maximum advance-booking horizon is imposed beyond supported calendar input.
 - IANA timezone rules are used in JavaScript and PostgreSQL, without a fixed UTC offset or dependence on the viewer/host timezone. Nonexistent spring-forward wall times and repeated fall-back wall times are **rejected** with guidance to choose another time. This first version does not offer a first/second occurrence selector. Valid intervals crossing a transition use actual elapsed time for duration. Ambiguous/nonexistent opening-hour boundaries make that date unbookable until clarified.
-- Intervals are half-open `[start,end)`: adjacent reservations/blocks are allowed. Only `confirmed` reservations occupy time; `cancelled` rows retain history and release it. Cancellation UI/API is not provided.
+- Intervals are half-open `[start,end)`: adjacent reservations/blocks are allowed. Only `confirmed` reservations occupy time; `cancelled` rows retain history and release it. The 2026-10-26 extension below adds cancellation UI/API.
 
 ## Atomic authorization and conflict protection
 
@@ -50,7 +52,7 @@ Design references for database behavior: PostgreSQL's [range exclusion constrain
 
 Figma Make context returned source links without usable source; its session/screenshot endpoints reported Make as unsupported and a resource read failed. The four attached screenshots guided the time panel, two-column proportions, controls and color-coded daily ranges. Existing Roomly components/tokens/gallery/photo assets are reused. No additional photos, unavailable review/confirmation designs, or unseen reference copy are claimed as extracted. Review and confirmation compose the existing Roomly styles. The browser's native calendar replaces the reference's custom calendar popover; its visual appearance/date order follows browser locale, while selected values always mean Chicago calendar dates. Booking data is real database content after the new migration is manually applied.
 
-My bookings, dashboard booking summaries, catalog date/time filters, cancellation UI, notifications and email are intentionally outside this task. Portfolio spaces remain visibly fictional; the reservation write is still a real database write after setup.
+My bookings and cancellation were initially excluded and are now implemented by the 2026-10-26 extension below. Dashboard booking summaries, catalog date/time filters, notifications and email remain outside scope. Portfolio spaces remain fictional; reservation and cancellation writes are real database writes after setup.
 
 ## Local checks and manual verification
 
@@ -66,3 +68,76 @@ Pending **manual** live verification after applying the new migration: verify a 
 Build note: the installed Next.js 16.4.0 build reported a dependency security advisory and initially stopped after compilation. A retry completed with the advisory still present. Dependencies were left unchanged to preserve this task's scope; a security upgrade remains recommended and unverified here. The existing default Turbopack issue is also unchanged; verification uses `npm run build -- --webpack`.
 
 Recorded agent results (2026-10-22): lint and strict TypeScript passed; 14 Vitest files / 97 tests passed; Webpack production build passed on retry with the security advisory above; all 8 existing desktop/mobile production Playwright tests passed, including the newly listed protected booking URLs. The disposable PostgreSQL 17 suite passed, including the concurrent booking/block test. The isolated catalog/booking browser suite passed, including sticky scrolling, sidebar collapse, desktop/mobile layouts, review/change/filter preservation, and fixture confirmation/error states. Desktop detail and mobile detail/review/confirmation screenshots were visually inspected. Earlier migrations and seed files have no diff. These results do not constitute hosted Supabase booking verification.
+
+## My bookings and cancellation — 2026-10-26
+
+### Exact manual migration step
+
+New file: **`supabase/migrations/20261026000100_add_booking_cancellation.sql`**. It is prepared locally and has not been applied to hosted Supabase by the agent.
+
+The full migration order is profiles (`20261014000100`) → catalog (`20261020000100`) → space details (`20261021000100`) → reservations (`20261022000100`) → this cancellation/list migration (`20261026000100`). Previously applied files and portfolio seeds were left unchanged. This request did not independently establish which reservation migrations are currently applied in the hosted project; the earlier reports above cover profiles/catalog/details.
+
+1. In the intended Supabase project's SQL Editor as database owner, inspect the current schema without modifying it:
+
+   ```sql
+   select to_regclass('public.reservations');
+   select column_name from information_schema.columns
+   where table_schema = 'public' and table_name = 'reservations'
+     and column_name = 'cancelled_at';
+   select to_regprocedure('public.cancel_booking(uuid)'),
+          to_regprocedure('public.my_bookings(text,integer)');
+   ```
+
+2. Confirm the existing reservations migration and its dependencies have already been applied successfully. **Do not rerun them.** If the reservation table/functions are absent, complete the initial booking setup above first, applying only genuinely missing migration versions in order. If cancellation/list objects already exist, inspect migration history and reconcile rather than rerunning or overwriting them.
+3. Review and run the **complete new cancellation migration**, including its `begin` and `commit`, once. This adds `cancelled_at`, supporting indexes, an owner cancellation RPC, and a bounded list RPC. Confirm the transaction succeeds. CLI-managed projects should reconcile manual migration history before using that workflow rather than blindly pushing all migrations.
+4. Refresh `/dashboard/bookings` while signed in. Allow Data API schema-cache propagation if necessary. No new seed, account, bucket, service-role key, or Auth setting is required. Do not create demonstration reservations. Existing owned records, including an October 23 reservation if it exists, are read naturally; no production dates, references, identities, or booking arrays are hardcoded.
+
+### Data, categories and bounded queries
+
+`my_bookings(p_tab,p_page)` is a restricted **SECURITY INVOKER** function, retaining the existing owner-only reservation RLS and active catalog/image RLS. PUBLIC/anon execution is revoked; only authenticated execution is granted. It explicitly checks authentication, uses an empty search path and fully qualified application objects, and selects only granted reservation columns. It does not select or require client access to `user_id`. Only SELECT on the new `cancelled_at` column is added; no general UPDATE/DELETE grants or policies are introduced.
+
+One PostgreSQL statement snapshot and `statement_timestamp()` boundary supplies all three full counts and the selected page. Categories are mutually exclusive:
+
+- Upcoming: confirmed and `ends_at > boundary`, including ongoing reservations.
+- Past: confirmed and `ends_at <= boundary` (the exact end instant is past).
+- Cancelled: cancelled, regardless of scheduled date.
+
+Upcoming sorts by start ascending; Past by start descending; Cancelled by `cancelled_at` descending, nulls last, with deterministic start/UUID ties. The migration does **not** invent cancellation timestamps for legacy cancelled rows; those remain NULL and sort after known cancellation times. The RPC returns at most 12 cards; counts reflect every matching owned record, not the current page. Invalid pages are rejected by SQL; out-of-range valid pages clamp to the last page. `tab` and `page` live in the URL and work with refresh/back/forward.
+
+Only metadata for active, readable spaces and images is joined. A reservation whose space is inactive/unreadable remains visible with its real dates, duration, UUID reference and status, plus a neutral photo/details fallback. No inaccessible name/floor/photo is reconstructed from fixtures. Cancellation remains possible for an eligible owned reservation even if its space is inactive.
+
+The UI reuses the shell, sidebar, photo component and scoped tokens. Cards display Chicago date/time (including CST/CDT), actual elapsed duration, the existing uppercase UUID reference and a truthful status. Ongoing rows show In progress and no cancellation action. Tab counts share the RPC boundary; the list refreshes on focus and periodically, with earlier refresh at visible start/end boundaries. A loaded snapshot can become stale while a request is in flight; database time and eligibility checks remain authoritative.
+
+The owner-only reservation detail page now says Past booking or This booking was cancelled when applicable, and In progress during its reserved interval. Only a future confirmed booking uses the existing confirmation heading. Display uses the saved instants and actual elapsed duration, avoiding reinterpreting stored times across DST transitions. Back to my bookings selects the appropriate category. Private/missing reservation URLs still produce not found rather than another user's data.
+
+### Cancellation transaction and UI
+
+`cancel_booking(p_reservation_id)` is a narrowly scoped SECURITY DEFINER function with an empty search path, qualified objects, explicit `auth.uid()` check and authenticated-only execution. It discovers an **owned** row without locking it, then acquires the same owner/request advisory lock as `create_booking`, the parent-space row lock used by booking/block writes, and finally the owned reservation row lock. This order avoids locking a reservation before the space. Ownership/status/timing are rechecked after locks. Only confirmed reservations with `starts_at > clock_timestamp()` can transition to cancelled. No caller-supplied user ID is accepted.
+
+A successful transition records the real `cancelled_at`, retains the UUID, request key, space, original instants and creation timestamp, and advances the existing update timestamp trigger. Repeated/concurrent cancellations return the same ID without changing the cancellation timestamp; an already-cancelled legacy row also stays unchanged. Missing and other-owner IDs produce the same not-found error. Past/ongoing confirmed rows are rejected. There is no delete, reactivation or client UPDATE path. A retry of the original creation request cannot reactivate a cancelled reservation.
+
+The existing confirmed-only exclusion constraint and `booking_day` query automatically stop occupying the cancelled interval. This releases that reservation's claim; it **does not guarantee availability** under current opening hours, blocks, or other constraints. The dialog copy reflects that distinction.
+
+The native modal dialog has a named heading/description, inert background, keyboard focus containment and initial focus on Keep booking. Keep and Escape close without mutation and restore focus to the trigger. While pending, both buttons are disabled and Escape dismissal is prevented. Failures keep the dialog and real list state intact with an actionable error. The server action independently verifies the session, checks the exact database-confirmed UUID result, revalidates My bookings, the reservation route and space routes, then redirects to Cancelled. The success banner appears only after an owner-scoped read confirms the referenced row is cancelled; a forged query parameter alone is insufficient. Space availability reads remain uncached and refresh on date/focus changes and the existing 30-second poll.
+
+### Reference and verification limits
+
+The Make context returned source links; session and screenshot tools reported Make unsupported. The interactive browser preview **was accessible** and its My bookings, Upcoming/Past/Cancelled tabs and empty states were inspected. Its current demonstration list was empty, so no prototype booking was created to manufacture content. The six supplied images (including a duplicate Cancelled empty-state image) guided populated horizontal cards, status pills, dialog and success banner. Existing local room photos are reused from database image records. No prototype references, counts, demo identity, booking data or unseen source styles are represented as extracted production data. The existing UUID reference is longer than the prototype reference and wraps responsively. Dialog copy intentionally avoids a promise of guaranteed availability.
+
+The expanded local PostgreSQL harness executes every migration in a new disposable local cluster with fake auth-schema identities, not real accounts. New assertions exercise owner isolation and grants, full counts over multiple pages, category boundaries including ongoing rows, sorting, legacy unknown timestamps, inactive metadata, past/ongoing refusal, repeated/concurrent cancellation, preserved history/request keys, availability release/rebooking, rejection of reactivation/direct writes, and a cancellation/creation race. This is real PostgreSQL verification, but not hosted Supabase JWT/Data API verification.
+
+Unit tests mock Supabase for list/setup/service failures, session guards, exact result validation, safe errors and revalidation/redirect behavior; view tests cover temporal boundaries, truthful detail headings, and preventing a spoofed success banner. The explicitly labeled local UI harness uses an isolated in-memory cancellation endpoint under `tests/` only; it is not an application route, account, remote write, localStorage fallback or authentication bypass. It checks real components across desktop/mobile widths, full tab counts, history navigation, empty/error/missing-space states, pagination, ongoing eligibility, dialog focus trap/Keep/Escape/restoration, pending lockout, failure without success, and fixture-only cancellation persistence.
+
+### Pending hosted verification — manual, not performed by the agent
+
+After applying only the missing new migration in the intended project:
+
+1. Sign in with an existing account and check the real tabs and full counts against its known records. A confirmed reservation that ended on October 23 should be Past on October 26; do not insert it if absent or expose it if owned by someone else. Check refresh, back/forward, pagination and Chicago dates/times.
+2. Open an owned past/cancelled/ongoing reservation and confirm truthful detail headings. Ongoing remains Upcoming with no Cancel action. Verify other-owner and unknown detail UUIDs both fail to reveal data.
+3. When intentionally authorized to mutate a suitable future test reservation, open its dialog: Keep and Escape must leave the record unchanged. Confirm cancellation once; verify the persisted status/timestamp, unchanged UUID/request/instants, refreshed counts, selected Cancelled tab and verified banner. Retry safely and confirm the timestamp does not move. Do not cancel a real member's reservation merely to test this feature.
+4. Inspect the affected day through the authenticated space page. The cancelled row must disappear from occupied ranges; assess any independently configured blocks/hours before calling the slot available. Refresh or refocus any already-open space tab. Rebooking is a separate real write and requires deliberate authorization.
+5. Using real authenticated sessions (not SQL Editor owner bypass), verify a second account cannot read or cancel the first account's reservation, anonymous RPC access is denied, and authenticated direct UPDATE/DELETE/reactivation is denied. Verify past/ongoing cancellation refusal even if a request is manually submitted, and concurrent/repeated cancellations remain safe. Never copy/log session tokens or keys while doing these checks.
+
+Hosted migration application, list reads, cancellation, RLS/JWT enforcement and availability release are still pending. No hosted writes, settings changes, commit, push or deployment were performed. Dashboard booking summaries remain outside scope.
+
+Recorded agent results (2026-10-26): lint and explicit route-generation/TypeScript checks passed; 16 Vitest files / 117 tests passed; the final Webpack production build passed on retry after the existing Next.js 16.4.0 security-advisory interruption. Dependencies were not changed; the security upgrade recommendation remains pending. All 8 existing desktop/mobile production authentication/landing tests passed. The expanded disposable PostgreSQL suite passed, including concurrent cancellation/creation and repeated cancellations. The complete isolated catalog/booking/My bookings browser suite passed at 1574/1056/768/390/320px My bookings widths, including keyboard focus containment/restoration, pending dismissal prevention, errors, truthful details, and test-only cancellation persistence. Desktop/mobile cards and dialogs were visually inspected; fixture previews are saved under ignored `.tools/my-bookings-preview/`. Previously applied migrations, seeds, authentication clients, dashboard summaries and dependencies have no implementation diff. None of these checks establishes hosted Supabase verification.

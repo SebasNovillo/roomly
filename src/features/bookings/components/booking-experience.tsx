@@ -38,7 +38,9 @@ export function BookingExperience({ slug, filters, initialSelection, initialDay,
     }
     void refresh();
     const interval = setInterval(() => void refresh(),30_000);
-    return () => { active = false; current?.abort(); clearInterval(interval); };
+    const onFocus = () => void refresh();
+    window.addEventListener("focus",onFocus);
+    return () => { active = false; current?.abort(); clearInterval(interval); window.removeEventListener("focus",onFocus); };
   }, [slug, selection.date]);
   useEffect(() => {
     const timer = setInterval(() => setNow(value => value + 1000),1000);

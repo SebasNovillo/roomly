@@ -1,0 +1,1 @@
+export default function LoadingBookings() { return <div className="dashboard-card catalog-state" role="status"><h1>Loading your bookings…</h1><p>Getting your reservations and their latest status.</p></div>; }
