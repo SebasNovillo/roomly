@@ -11,6 +11,7 @@ export function ReviewView({ space, selection, requestId, changeHref, issue }: {
     <div className="dashboard-card booking-review-actions">
       {issue && <p role="alert" className="booking-error">{issue}</p>}
       <Link className="text-link" href={changeHref}>Change date or time</Link>
+      <p className="availability-note">Space availability and your existing bookings will be checked again when you confirm.</p>
       <ConfirmForm spaceId={space.id} requestId={requestId} selection={selection} disabled={Boolean(issue)} />
     </div>
   </div>;

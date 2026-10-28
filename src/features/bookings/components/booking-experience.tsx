@@ -47,7 +47,7 @@ export function BookingExperience({ slug, filters, initialSelection, initialDay,
     return () => clearInterval(timer);
   }, []);
   const issue = selectionIssue(selection, result, now);
-  const status = loading ? "Checking the latest availability…" : issue ?? "Your selection is available. It will be checked again when you confirm.";
+  const status = loading ? "Checking the latest availability…" : issue ?? "This space is available for your selection. Your schedule will be checked when you confirm.";
   function change(key: keyof Selection, value: string) {
     const next = { ...selection, [key]: value };
     if (key === "date") setLoading(true);
@@ -63,7 +63,7 @@ export function BookingExperience({ slug, filters, initialSelection, initialDay,
           <p className="hours-timezone">Open {timeLabel(result.day.opensAt)}–{timeLabel(result.day.closesAt)}</p>
           <ul className="availability-legend" aria-label="Availability legend">{["past","available","booked","blocked"].map(kind => <li key={kind} className={kind}>{kind}</li>)}</ul>
           <ol className="availability-ranges">{daySegments(result.day,now).map(range => <li key={range.start} className={range.kind}><span>{timeLabel(new Date(range.start).toISOString())}–{timeLabel(new Date(range.end).toISOString())}</span><strong>{range.kind}</strong></li>)}</ol>
-          <p className="availability-note">Availability may change until your booking is confirmed.</p>
+          <p className="availability-note">This shows space availability. Your existing bookings may still conflict, and availability may change before confirmation.</p>
         </>}
       </section>
       {supplemental}

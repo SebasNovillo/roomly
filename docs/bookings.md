@@ -1,5 +1,7 @@
 # Booking flow
 
+**User-reported manual verification, 2026-10-27:** cancellation moved a reservation to Cancelled, released its occupied interval, and allowed that interval to be reserved again. This is the user's hosted cancellation result, separate from agent-run local/mocked tests. It does not verify the new cross-space user-schedule rule below.
+
 Extended 2026-10-26 with My bookings and owner-only cancellation. The sections about the initial 2026-10-22 implementation and its verification remain historical; the new migration and checks are documented below. No hosted reservation was created or cancelled by this task, and no remote migration/settings change was made.
 
 Implemented 2026-10-22. Database SQL is prepared locally only. The agent has not applied a remote migration, created a real booking/account, sent email, or changed Supabase settings. No service-role key is used.
@@ -141,3 +143,62 @@ After applying only the missing new migration in the intended project:
 Hosted migration application, list reads, cancellation, RLS/JWT enforcement and availability release are still pending. No hosted writes, settings changes, commit, push or deployment were performed. Dashboard booking summaries remain outside scope.
 
 Recorded agent results (2026-10-26): lint and explicit route-generation/TypeScript checks passed; 16 Vitest files / 117 tests passed; the final Webpack production build passed on retry after the existing Next.js 16.4.0 security-advisory interruption. Dependencies were not changed; the security upgrade recommendation remains pending. All 8 existing desktop/mobile production authentication/landing tests passed. The expanded disposable PostgreSQL suite passed, including concurrent cancellation/creation and repeated cancellations. The complete isolated catalog/booking/My bookings browser suite passed at 1574/1056/768/390/320px My bookings widths, including keyboard focus containment/restoration, pending dismissal prevention, errors, truthful details, and test-only cancellation persistence. Desktop/mobile cards and dialogs were visually inspected; fixture previews are saved under ignored `.tools/my-bookings-preview/`. Previously applied migrations, seeds, authentication clients, dashboard summaries and dependencies have no implementation diff. None of these checks establishes hosted Supabase verification.
+
+## One confirmed reservation at a time per user — 2026-10-27
+
+New migration: **`supabase/migrations/20261027000100_prevent_user_booking_overlaps.sql`**. It follows `20261026000100_add_booking_cancellation.sql`; all earlier migration files are unchanged. No remote SQL or real reservation mutation was performed by the agent.
+
+### Read-only preflight and manual application
+
+1. Confirm the existing profiles → catalog → space details → reservations → cancellation migrations have already been applied in the intended project. Do not rerun previously applied files. Run **`supabase/preflight/20261027000100_user_reservation_overlaps.sql`** in that project's SQL Editor as database owner. This is an administrator-only read: authenticated clients intentionally cannot SELECT `user_id`, and RLS would not give a cross-user audit. Keep the returned private reservation identifiers within the administrative review.
+
+   The preflight query is:
+
+   ```sql
+   select a.user_id,
+     a.id as first_reservation_id, b.id as second_reservation_id,
+     a.space_id as first_space_id, b.space_id as second_space_id,
+     a.starts_at as first_starts_at, a.ends_at as first_ends_at,
+     b.starts_at as second_starts_at, b.ends_at as second_ends_at
+   from public.reservations a
+   join public.reservations b on a.user_id = b.user_id and a.id < b.id
+     and pg_catalog.tstzrange(a.starts_at,a.ends_at,'[)')
+       && pg_catalog.tstzrange(b.starts_at,b.ends_at,'[)')
+   where a.status = 'confirmed' and b.status = 'confirmed'
+   order by a.user_id,a.starts_at,a.id,b.id;
+   ```
+
+2. Any returned pair is an existing conflict, including past reservations still marked confirmed. Review it manually before applying the migration. **Nothing is deleted, cancelled, rescheduled, or relabeled automatically.** Adjacent intervals and cancelled rows do not appear as conflicts. An empty preflight result is only a snapshot, not an installation guarantee.
+3. When preflight is clean, review and run the complete new migration once, including `begin` and `commit`. It takes an ACCESS EXCLUSIVE reservation-table lock while checking and building the constraint, so use an appropriate maintenance window for booking writes. It repeats the conflict check under that lock, preventing writes from entering between preflight and installation. If conflicts exist, it fails with SQLSTATE `23514` and the clear message “Existing confirmed reservations overlap for a user; migration was not applied”. The transaction preserves all reservations and the prior RPC. Review the separate preflight results; do not rerun old migrations or delete history to force installation. Already-installed objects should be reconciled against migration history rather than overwritten.
+4. Confirm transaction success. A read-only owner inspection can verify both exclusion constraints:
+
+   ```sql
+   select conname, pg_get_constraintdef(oid)
+   from pg_constraint
+   where conrelid = 'public.reservations'::regclass
+     and conname in ('reservations_no_overlap', 'reservations_user_no_overlap');
+   ```
+
+   CLI-managed projects should reconcile manually applied history before their usual migration workflow; do not blindly push earlier versions. No seed, bucket, service-role key or Supabase setting change is needed.
+
+### Constraint, RPC and locking
+
+`reservations_user_no_overlap` is a partial GiST exclusion constraint on `(user_id WITH =, tstzrange(starts_at,ends_at,'[)') WITH &&) WHERE status = 'confirmed'`. It uses the existing `btree_gist` installation. It rejects a user's overlaps across every space, including concurrent/direct writes. The original space exclusion constraint stays in place. Half-open ranges allow both preceding and following adjacent reservations; cancelled records do not occupy either exclusion constraint.
+
+The new migration replaces only the `create_booking` function body using the same signature, verified-session identity, SECURITY DEFINER mode, empty search path, qualified objects and authenticated-only execution grant. Request-key locking and replay checks run exactly as before. Identical confirmed retries still return the original UUID; cancelled/mismatched request-key reuse still fails. New insert attempts additionally acquire a per-owner advisory lock (a separate two-integer lock namespace) **after replay checking and before any space lock**. This serializes the owner's new RPC inserts across spaces and avoids cross-space exclusion-index races/deadlocks through this function. The database constraint remains authoritative for all writes, independent of the RPC lock.
+
+The existing request → space ordering is preserved; cancellation keeps its request → space → reservation lock order and does not acquire the new owner lock. Existing space-active, Chicago/DST, future start, duration/30-minute step, weekly hours and explicit block validations are unchanged. `cancel_booking`, `booking_day`, `my_bookings`, table grants and RLS policies are not replaced or broadened. Cancellation removes the record from both confirmed-only constraints, preserving its UUID/history/request behavior.
+
+An exclusion failure is inspected with PostgreSQL `GET STACKED DIAGNOSTICS ... CONSTRAINT_NAME`. Only `reservations_user_no_overlap` becomes safe custom SQLSTATE **`PBR01`**, message `User schedule conflict`, without constraint details, IDs, times or other-user metadata. Existing space/block failures remain `23P01`; all other failures retain their prior behavior. If both constraints would conflict, the reported constraint determines the error category; cross-space personal conflicts have their own unambiguous code. The application uses that code, never provider message/detail parsing.
+
+### Application behavior and verification
+
+No personal-schedule precheck or new data-read endpoint is added. Shared room availability still reflects only that room's opening hours, confirmed reservations and blocks. A room can correctly show available while this user has another room reserved. The selection and review copy make this distinction clear. Database confirmation checks the rule even if the review loaded before the conflicting reservation was committed.
+
+`PBR01` displays exactly: **“You already have a booking during this time. Choose another time or manage your existing booking.”** The error includes a My bookings link to the Upcoming tab. Review selection, request key, catalog filters and Change date or time link remain intact; no success redirect occurs after a conflict. Space conflicts keep their existing message. No other users' booking details are queried or shown. Dashboard integration remains outside scope.
+
+Agent verification uses the existing disposable local PostgreSQL cluster, fake auth-schema identities and isolated UI fixtures, never real accounts or hosted bookings. Added SQL tests exercise legacy preflight detection and rollback without data/RPC changes, clean installation, cross-space overlap shapes, both adjacencies, cancelled rows, distinct users booking distinct rooms simultaneously, the original space constraint, shared-room availability during a personal conflict, owner isolation, privileged direct constraint enforcement, concurrent cross-space attempts, same-request retries and cancellation/creation races. Existing opening-hours, blocked-period, duration, DST and cancellation checks remain in the suite. Application tests mock the dedicated code versus space/service errors and verify a conflict after review load, the exact message, My bookings link, retained filters/selections and responsive error display.
+
+Remaining manual steps after applying this new migration: with deliberately authorized test reservations and real authenticated sessions, verify same-user cross-space rejection (including a review left open before another confirmation), adjacent success, cancelled-interval reuse, different-user/different-room success, same-room rejection, same-request replay, owner-only reads and unchanged room availability. These are pending hosted checks; the user's cancellation verification at the top is a separate result. Do not create/cancel real reservations automatically to perform them.
+
+Recorded agent results (2026-10-27): lint, explicit TypeScript/route generation and all 119 unit tests passed. The expanded disposable PostgreSQL suite passed, including preflight failure/rollback, direct-write constraint enforcement and concurrency outside the RPC, concurrent independent users, cross-space RPC races, cancellation races, retries and all existing duration/hours/DST/block checks. The complete isolated catalog/booking/My bookings browser suite passed; the post-review personal-conflict message/link and retained selection/filters were verified, and its mobile screenshot was inspected and saved under ignored `.tools/user-schedule-preview/`. All 8 existing production desktop/mobile authentication/landing tests passed. The Webpack production build passed on retry after the existing Next.js dependency security-advisory interruption; dependencies were unchanged and the upgrade recommendation remains pending. Earlier migration files, cancellation/availability RPC definitions, RLS policies and Dashboard implementation were left unchanged. These checks used local fake identities or mocks, not hosted Supabase reservations.

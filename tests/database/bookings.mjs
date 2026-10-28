@@ -7,6 +7,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import assert from "node:assert/strict";
 import { verifyCancellation } from "./cancellation.mjs";
+import { verifyScheduleMigrationPreflight,verifyUserSchedule } from "./user-schedule.mjs";
 
 const exec = promisify(execFile);
 const bin = process.env.ROOMLY_TEST_PG_BIN ?? "C:/Program Files/PostgreSQL/17/bin";
@@ -46,7 +47,10 @@ try {
     create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
     grant usage on schema auth to authenticated,anon; grant execute on function auth.uid() to authenticated,anon;`);
   for (const file of (await readdir("supabase/migrations")).filter(file => file.endsWith(".sql")).sort()) {
-    await sql(await readFile(path.join("supabase/migrations",file),"utf8"));
+    const migration=await readFile(path.join("supabase/migrations",file),"utf8");
+    if(file === "20261027000100_prevent_user_booking_overlaps.sql") {
+      await verifyScheduleMigrationPreflight(sql,migration,await readFile("supabase/preflight/20261027000100_user_reservation_overlaps.sql","utf8"));
+    } else await sql(migration);
   }
   await sql(`insert into auth.users(id) values('${userA}'),('${userB}');
     insert into public.spaces(id,slug,name,description,type,floor,capacity,is_active) values
@@ -59,7 +63,7 @@ try {
   assert.match(id,/^[0-9a-f-]{36}$/);
   assert.equal(await sql(session() + create("09:00","10:00",key)),id,"retry must return original row");
   await rejects(session()+create("10:00","11:00",key),/Request key already used/);
-  await rejects(session()+create("09:30","10:30"),/reservations_no_overlap/);
+  await rejects(session(userB)+create("09:30","10:30"),/reservations_no_overlap/);
   await sql(session()+create("10:00","10:30")); // adjacent valid, minimum 30
   await rejects(session()+create("10:15","11:00"),/Invalid selection/);
   await rejects(session()+create("11:00","11:00"),/Selection outside booking rules/);
@@ -113,6 +117,7 @@ try {
   await sql(`update public.reservations set status='cancelled' where id='${id}';`);
   await sql(session(userB)+create("09:00","10:00"));
   await verifyCancellation({sql,session,space,otherSpace,userA,userB,create});
+  await verifyUserSchedule({sql,session,userA,userB,create});
   await sql(`update public.spaces set is_active=false where id='${space}';`);
   await rejects(session()+`select public.booking_day('${space}','2090-01-09');`,/Space unavailable/);
   await rejects(session()+create("18:00","19:00"),/Space unavailable/);

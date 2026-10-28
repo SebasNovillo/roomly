@@ -19,7 +19,8 @@ export const daySchema = z.discriminatedUnion("state", [
 ]);
 export type Day = z.infer<typeof daySchema>;
 export type DayResult = { ok: true; day: Day } | { ok: false; kind: "setup" | "service" };
-export type BookingState = { message?: string };
+export type BookingState = { message?: string; conflict?: "user-schedule" };
+export const userScheduleConflictMessage = "You already have a booking during this time. Choose another time or manage your existing booking.";
 export const serviceMessage = "Booking is temporarily unavailable. Please try again later.";
 
 const localFormatter = new Intl.DateTimeFormat("en-CA", { timeZone: TIMEZONE, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });

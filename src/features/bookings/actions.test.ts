@@ -4,6 +4,7 @@ vi.mock("@/features/auth/viewer",()=>({getViewer:mocks.getViewer}));
 vi.mock("@/lib/supabase/server",()=>({createClient:mocks.createClient}));
 vi.mock("next/navigation",()=>({redirect:mocks.redirect}));
 import { confirmBooking } from "./actions";
+import { userScheduleConflictMessage } from "./model";
 const id = "bb000000-0000-4000-8000-000000000001";
 const form = () => { const value = new FormData(); for (const [key,entry] of Object.entries({spaceId:id,requestId:id,date:"2027-01-05",start:"09:00",end:"10:00",userId:"attacker-supplied-identity"})) value.set(key,entry); return value; };
 beforeEach(()=>{
@@ -36,5 +37,17 @@ describe("booking server action with mocked Supabase",()=>{
   it("validates selection before contacting the database",async()=>{
     const invalid = form(); invalid.set("start","09:15");
     expect((await confirmBooking({},invalid)).message).toBeTruthy(); expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it("separates an authoritative user-schedule conflict after review from space conflicts",async()=>{
+    mocks.rpc.mockResolvedValueOnce({data:null,error:{code:"PBR01",message:"private provider details",details:"other identifiers must not be displayed"}});
+    expect(await confirmBooking({},form())).toEqual({message:userScheduleConflictMessage,conflict:"user-schedule"});
+    expect(mocks.redirect).not.toHaveBeenCalled();
+    mocks.rpc.mockResolvedValueOnce({data:null,error:{code:"23P01"}});
+    const spaceConflict=await confirmBooking({},form());
+    expect(spaceConflict.message).toContain("taken or blocked");expect(spaceConflict.conflict).toBeUndefined();
+  });
+  it("does not infer user conflicts from an untrusted generic error message",async()=>{
+    mocks.rpc.mockResolvedValue({data:null,error:{code:"unknown",message:"PBR01 User schedule conflict"}});
+    expect((await confirmBooking({},form())).conflict).toBeUndefined();
   });
 });

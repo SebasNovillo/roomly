@@ -63,12 +63,20 @@ export async function verifyBookingFlow(page,base,output) {
   await expect(page.locator(".daily-availability")).toContainText("temporarily unavailable");
   await expect(page.getByRole("button",{name:"Continue to booking"})).toBeDisabled();
   serviceFailure = false; responseDay = openDay;
-  const review = `${base}/atlas-meeting-room/review?date=2027-01-05&start=09%3A00&end=10%3A00&request=bb000000-0000-4000-8000-000000000001`;
-  for(const error of ["conflict","service"]) {
+  const review = `${base}/atlas-meeting-room/review?date=2027-01-05&start=09%3A00&end=10%3A00&request=bb000000-0000-4000-8000-000000000001&q=Atlas&minCapacity=8&amenity=display`;
+  for(const error of ["conflict","service","user-schedule"]) {
     await page.goto(`${review}&fixtureConfirm=${error}`);
     await page.getByRole("button",{name:"Confirm booking",exact:true}).click();
     await expect(page.getByRole("button",{name:"Confirming booking…"})).toBeDisabled();
-    await expect(page.getByRole("alert")).toContainText(error === "conflict" ? "just taken" : "temporarily unavailable");
+    await expect(page.getByRole("alert")).toContainText(error === "conflict" ? "just taken" : error === "user-schedule" ? "You already have a booking during this time. Choose another time or manage your existing booking." : "temporarily unavailable");
+    if(error === "user-schedule") {
+      await expect(page.getByRole("alert").getByRole("link",{name:"My bookings",exact:true})).toHaveAttribute("href","/dashboard/bookings?tab=upcoming");
+      await expect(page.getByRole("link",{name:"Change date or time"})).toHaveAttribute("href",/date=2027-01-05&start=09%3A00&end=10%3A00/);
+      await expect(page.getByRole("link",{name:"Change date or time"})).toHaveAttribute("href",/q=Atlas&minCapacity=8&amenity=display/);
+      await page.setViewportSize({width:390,height:1000});
+      expect(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({path:path.join(output,"user-schedule-conflict-mobile.png"),fullPage:true});
+    }
     await expect(page.getByRole("heading",{name:"Your booking is confirmed"})).toHaveCount(0);
     await expect(page.getByRole("button",{name:"Confirm booking",exact:true})).toBeEnabled();
   }
