@@ -2,6 +2,9 @@ import { expect } from "@playwright/test";
 import path from "node:path";
 
 export async function verifyBookingFlow(page,base,output) {
+  // Simulate LAN HTTP: the continuation must not depend on secure-context UUIDs.
+  await page.addInitScript(() => Object.defineProperty(Crypto.prototype,"randomUUID",{configurable:true,value:undefined}));
+  await page.route("**/dashboard/schedule-conflicts?*",route=>route.fulfill({contentType:"application/json",body:JSON.stringify({conflicts:[]})}));
   const openDay = { state:"open",now:"2027-01-05T12:00:00Z",opensAt:"2027-01-05T14:00:00Z",closesAt:"2027-01-06T02:00:00Z",occupied:[{start:"2027-01-05T16:00:00Z",end:"2027-01-05T17:00:00Z",kind:"booked"},{start:"2027-01-05T18:00:00Z",end:"2027-01-05T19:00:00Z",kind:"blocked"}] };
   let responseDay = openDay;
   let serviceFailure = false;
@@ -34,6 +37,13 @@ export async function verifyBookingFlow(page,base,output) {
     if(width ===1574 || width===390) await page.screenshot({path:path.join(output,`booking-${width===390 ? "mobile" : "desktop"}.png`),fullPage:true});
     await page.getByRole("button",{name:"Continue to booking"}).click();
     await expect(page.getByRole("heading",{name:"Review your booking"})).toBeVisible();
+    expect(await page.evaluate(()=>typeof crypto.randomUUID)).toBe("undefined");
+    // This fixture has no server redirect; production's server UUID redirect is
+    // exercised separately by pages.test.ts, with the actual review route.
+    expect(new URL(page.url()).searchParams.has("request")).toBe(false);
+    expect(new URL(page.url()).searchParams.get("date")).toBe("2027-01-05");
+    expect(new URL(page.url()).searchParams.get("start")).toBe("09:00");
+    expect(new URL(page.url()).searchParams.get("end")).toBe("10:00");
     expect(new URL(page.url()).searchParams.get("amenity")).toBe("display");
     await expect(page.locator(".booking-summary-details")).toContainText("1 hr");
     await expect(page.locator(".booking-summary-details")).toContainText("America/Chicago");
@@ -66,6 +76,7 @@ export async function verifyBookingFlow(page,base,output) {
   const review = `${base}/atlas-meeting-room/review?date=2027-01-05&start=09%3A00&end=10%3A00&request=bb000000-0000-4000-8000-000000000001&q=Atlas&minCapacity=8&amenity=display`;
   for(const error of ["conflict","service","user-schedule"]) {
     await page.goto(`${review}&fixtureConfirm=${error}`);
+    await expect(page.locator('input[name="requestId"]')).toHaveValue("bb000000-0000-4000-8000-000000000001");
     await page.getByRole("button",{name:"Confirm booking",exact:true}).click();
     await expect(page.getByRole("button",{name:"Confirming booking…"})).toBeDisabled();
     await expect(page.getByRole("alert")).toContainText(error === "conflict" ? "just taken" : error === "user-schedule" ? "You already have a booking during this time. Choose another time or manage your existing booking." : "temporarily unavailable");
@@ -79,6 +90,7 @@ export async function verifyBookingFlow(page,base,output) {
     }
     await expect(page.getByRole("heading",{name:"Your booking is confirmed"})).toHaveCount(0);
     await expect(page.getByRole("button",{name:"Confirm booking",exact:true})).toBeEnabled();
+    await expect(page.locator('input[name="requestId"]')).toHaveValue("bb000000-0000-4000-8000-000000000001");
   }
   await page.goto(review);
   await page.getByRole("button",{name:"Confirm booking",exact:true}).click();

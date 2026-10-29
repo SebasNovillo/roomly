@@ -18,7 +18,7 @@ Previously applied files remain unchanged:
 
 For the existing project, review and manually apply **only** `supabase/migrations/20261022000100_create_reservations.sql`, once, as database owner in the intended project's SQL Editor, including its entire `begin`/`commit` transaction. Check transaction success before using the flow. It installs `btree_gist` if absent and adds reservations, blocked periods, policies, grants and functions. It requires the existing spaces/hours tables and private timestamp function. It deliberately fails on existing conflicting objects rather than replacing them. If migration history is managed with the CLI, reconcile the already-manually-applied versions before using that history; do not blindly push all migrations.
 
-No new booking seed is provided: the production flow starts with no reservations or blocks. Existing Atlas schedule/gallery seeds are sufficient. Other spaces remain unbookable for unconfigured weekdays. Do not copy Atlas's schedule to them. No bucket, Auth setting, or environment variable change is required. If the Data API temporarily reports a missing RPC after successful application, allow schema-cache propagation; do not rerun the migration as a cache refresh.
+No reservation or blocked-period seed is provided: the production flow starts with no reservations or blocks. Existing Atlas schedule/gallery seeds are sufficient. Other spaces remain unbookable for unconfigured weekdays. The optional 2026-10-28 demo-hours seed below now provides an explicitly authorized schedule for the other five portfolio records only; it is not a production fallback or an inference from Atlas. No bucket, Auth setting, or environment variable change is required. If the Data API temporarily reports a missing RPC after successful application, allow schema-cache propagation; do not rerun the migration as a cache refresh.
 
 ## Pages and behavior
 
@@ -193,7 +193,7 @@ An exclusion failure is inspected with PostgreSQL `GET STACKED DIAGNOSTICS ... C
 
 ### Application behavior and verification
 
-No personal-schedule precheck or new data-read endpoint is added. Shared room availability still reflects only that room's opening hours, confirmed reservations and blocks. A room can correctly show available while this user has another room reserved. The selection and review copy make this distinction clear. Database confirmation checks the rule even if the review loaded before the conflicting reservation was committed.
+The 2026-10-27 change added no personal-schedule precheck or new data-read endpoint; the 2026-10-28 extension below adds that preliminary read. Shared room availability still reflects only that room's opening hours, confirmed reservations and blocks. A room can correctly show available while this user has another room reserved. The selection and review copy make this distinction clear. Database confirmation checks the rule even if the review loaded before the conflicting reservation was committed.
 
 `PBR01` displays exactly: **“You already have a booking during this time. Choose another time or manage your existing booking.”** The error includes a My bookings link to the Upcoming tab. Review selection, request key, catalog filters and Change date or time link remain intact; no success redirect occurs after a conflict. Space conflicts keep their existing message. No other users' booking details are queried or shown. Dashboard integration remains outside scope.
 
@@ -202,3 +202,94 @@ Agent verification uses the existing disposable local PostgreSQL cluster, fake a
 Remaining manual steps after applying this new migration: with deliberately authorized test reservations and real authenticated sessions, verify same-user cross-space rejection (including a review left open before another confirmation), adjacent success, cancelled-interval reuse, different-user/different-room success, same-room rejection, same-request replay, owner-only reads and unchanged room availability. These are pending hosted checks; the user's cancellation verification at the top is a separate result. Do not create/cancel real reservations automatically to perform them.
 
 Recorded agent results (2026-10-27): lint, explicit TypeScript/route generation and all 119 unit tests passed. The expanded disposable PostgreSQL suite passed, including preflight failure/rollback, direct-write constraint enforcement and concurrency outside the RPC, concurrent independent users, cross-space RPC races, cancellation races, retries and all existing duration/hours/DST/block checks. The complete isolated catalog/booking/My bookings browser suite passed; the post-review personal-conflict message/link and retained selection/filters were verified, and its mobile screenshot was inspected and saved under ignored `.tools/user-schedule-preview/`. All 8 existing production desktop/mobile authentication/landing tests passed. The Webpack production build passed on retry after the existing Next.js dependency security-advisory interruption; dependencies were unchanged and the upgrade recommendation remains pending. Earlier migration files, cancellation/availability RPC definitions, RLS policies and Dashboard implementation were left unchanged. These checks used local fake identities or mocks, not hosted Supabase reservations.
+
+## Optional remaining portfolio opening hours — 2026-10-28
+
+Seed: **`supabase/seeds/remaining_portfolio_opening_hours.sql`**. This is optional fictional demo data, using the schedule explicitly requested by the user, not extracted Figma content or an assumption about real operations. No schema, RLS, permissions, frontend fallback, reservations or blocked periods are changed. Missing hours continue to mean unconfigured/unavailable for booking until deliberately configured.
+
+The seed targets exactly these existing ID/slug pairs and requires `is_demo = true` for every one:
+
+| Stable space ID | Slug |
+| --- | --- |
+| `a7100000-0000-4000-8000-000000000002` | `willow-study-room` |
+| `a7100000-0000-4000-8000-000000000003` | `horizon-conference-room` |
+| `a7100000-0000-4000-8000-000000000004` | `focus-office` |
+| `a7100000-0000-4000-8000-000000000005` | `studio-collaboration-room` |
+| `a7100000-0000-4000-8000-000000000006` | `commons-coworking-area` |
+
+Each missing weekday receives an open row (`is_closed = false`) with these **America/Chicago local wall-clock** times; IANA timezone conversion remains in the existing booking functions:
+
+| Weekdays (`weekday`, Sunday = 0) | Opens | Closes |
+| --- | --- | --- |
+| Monday–Thursday (1–4) | 08:00 | 20:00 |
+| Friday (5) | 08:00 | 18:00 |
+| Saturday–Sunday (6, 0) | 10:00 | 16:00 |
+
+At most **35 rows** are added: seven weekdays for each of five spaces. With no existing rows for these spaces, all 35 are inserted. Otherwise only missing `(space_id, weekday)` pairs are inserted. `ON CONFLICT (space_id, weekday) DO NOTHING` preserves existing open or closed settings and their timestamps, even when they differ from the demo schedule. Atlas (`...000001`) is never targeted. Non-demo and unrelated spaces are never modified. A missing ID, mismatched slug, or false demo flag raises SQLSTATE `23514` and rolls back the entire seed, including any earlier loop inserts. Parent row share locks hold validated identities/demo flags stable through commit. Repeating the seed makes no changes once all weekdays exist.
+
+### Manual application and read-only verification
+
+1. Select the intended demo Supabase project. Confirm the catalog and space-details migrations and `spaces_portfolio.sql` were already applied. This seed depends on those tables/records; it does not require rerunning any migration or old seed. Do **not** rerun `space_details_portfolio.sql` for this task: that older Atlas seed updates its existing hours.
+2. As database owner in SQL Editor, run the read-only query below **before** application. It shows all 35 expected weekday pairs, whether the exact demo identity matches, and the current configuration (including missing rows). Stop if any `expected_demo_record` is false; review the catalog manually rather than relabeling a real record to force the seed.
+3. Review and run the complete `remaining_portfolio_opening_hours.sql`, including `begin`, the DO block, and `commit`, as database owner. Confirm transaction success. A validation error commits nothing; resolve the mismatch deliberately before retrying. This is an optional seed, not a migration, and must not be added to automatic production startup.
+4. Rerun the same read-only query. All five identities should match and all 35 weekday pairs should be configured; existing administrator hours may legitimately differ from the demo schedule. Refresh the authenticated space detail/date availability view to inspect the configured schedule. Actual bookability still depends on the date, past times, DST rules, existing reservations, blocks and the user's schedule. No reservation needs to be created to verify the hours.
+
+```sql
+with expected(id, slug) as (values
+  ('a7100000-0000-4000-8000-000000000002'::uuid, 'willow-study-room'),
+  ('a7100000-0000-4000-8000-000000000003'::uuid, 'horizon-conference-room'),
+  ('a7100000-0000-4000-8000-000000000004'::uuid, 'focus-office'),
+  ('a7100000-0000-4000-8000-000000000005'::uuid, 'studio-collaboration-room'),
+  ('a7100000-0000-4000-8000-000000000006'::uuid, 'commons-coworking-area')
+)
+select e.id, e.slug,
+  coalesce(s.slug = e.slug and s.is_demo = true, false) as expected_demo_record,
+  d.weekday,
+  (array['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'])[d.weekday + 1] as day,
+  case when h.space_id is null then 'unconfigured'
+       when h.is_closed then 'closed' else 'open' end as configuration,
+  h.opens_at, h.closes_at, h.created_at, h.updated_at
+from expected e
+cross join generate_series(0, 6) as d(weekday)
+left join public.spaces s on s.id = e.id
+left join public.space_opening_hours h on h.space_id = s.id and h.weekday = d.weekday
+order by e.id, case when d.weekday = 0 then 7 else d.weekday end;
+```
+
+The user's current report is that only Atlas has configured hours, including Horizon being correctly unconfigured; no hosted query was run by the agent to independently establish the current row count. Remote seed application and authenticated live verification remain manual/pending. Agent verification uses only the disposable local PostgreSQL runner, with isolated portfolio fixtures and fake auth-schema identities, never the hosted database.
+
+Agent-run results (2026-10-28): the full disposable PostgreSQL 17 booking suite passed, including the new seed checks for missing records, slug mismatches and non-demo records causing complete rollback; all 35 target weekday configurations; preservation of custom open/closed settings and timestamps; unchanged Atlas, unrelated hours, spaces, images, rules, reservations and blocked periods; rerun equality; and execution of the documented read-only verification query. Lint and `git diff --check` passed. No frontend or TypeScript implementation changed, so no browser/build checks were needed for this SQL/data-only task. These local results do not establish hosted seed application or live availability.
+
+## LAN HTTP booking continuation — 2026-10-28
+
+Continue to booking now navigates to review without a browser-generated request key. The existing protected review route uses Node's `crypto.randomUUID()` to redirect a missing/invalid key to a canonical review URL. A valid key is retained across reloads and passed unchanged to confirmation retries; owner-scoped committed-request recovery and database idempotency are unchanged. This avoids the browser secure-context restriction on `crypto.randomUUID()` over LAN HTTP without using weak identifier fallbacks. Selection and catalog filters remain in both redirect and back URLs. Repository inspection found no other production browser-side `randomUUID` calls; the remaining production call is the existing server-only review import from `node:crypto`.
+
+Regression coverage disables browser `Crypto.prototype.randomUUID` in the isolated UI fixture and exercises continuation at desktop/mobile widths, retaining selection/filter parameters. This fixture has no server redirect: separate tests invoke the actual review route with mocked session/database reads to verify server-generated UUID redirects for missing, malformed and array keys, unchanged keys across reloads, and existing committed-request recovery. Confirmation error/retry checks retain the same hidden request key. These checks do not create hosted reservations.
+
+Agent read-only LAN verification: Continue from the existing authenticated Atlas selection reached review with a server-issued UUID, preserved date/time, and retained exactly the same URL/key after reload. Confirm booking was not clicked. The catalog loaded all six spaces in that same session. The retained app terminal, `.next/dev/logs/next-development.log`, and browser error logs were inspected: no catalog failure details were present (only development/image/scroll warnings). The earlier reported catalog error could not be reproduced or causally classified from that evidence. The UUID exception occurs before the client navigation and does not itself produce a catalog query failure; this does not establish the cause of a historical catalog failure. No Supabase data, migrations, permissions or settings were changed for this fix.
+
+Recorded agent results for this fix (2026-10-28): all 123 unit tests passed; lint, explicit TypeScript/route generation, and the Webpack production build passed. The complete isolated catalog/booking/My bookings browser suite passed with browser UUID generation unavailable, and all 8 production desktop/mobile authentication/landing tests passed. The live LAN review/reload check above was read-only; confirmation retries and failures were tested with mocks/fixtures, not real reservation writes. A live review screenshot is saved under ignored `.tools/lan-booking-review.png`. Earlier optional demo-hours seed changes remain separate and unapplied by the agent.
+
+## Early personal-schedule check — 2026-10-28
+
+**User-reported hosted verification:** the user manually applied `20261027000100_prevent_user_booking_overlaps.sql` and verified that confirmation in a different space during an existing reservation was rejected with the expected personal-conflict message. This is separate from the agent's local/mocked tests below and does not establish hosted verification of this new preliminary check.
+
+Choose your time now checks a valid Chicago date/start/end interval before review. Room availability remains independent: the daily ranges and room-wide Booked labels are unchanged. A known personal conflict replaces the green selection status with an inline warning, disables Continue, and lists every returned owned conflict with its readable active-space name (or “Existing booking”), Chicago date/time with CST/CDT, and an owner-only View existing booking link. Date/time controls remain enabled. Status updates use a polite, atomic live region without moving focus. A successful empty result is explicitly provisional; both space and personal availability are rechecked at confirmation.
+
+The new authenticated GET `/dashboard/schedule-conflicts?date=YYYY-MM-DD&start=HH:mm&end=HH:mm` returns only `{conflicts:[{id,startsAt,endsAt,spaceName}]}` for the signed-in owner's confirmed overlaps. It uses the existing request-scoped publishable-key Supabase client and verified `getViewer()` session. Reservation SELECT requests only the already-granted `id,space_id,starts_at,ends_at` columns; `user_id` is neither selected nor accepted as input. Existing owner-only RLS derives identity from `auth.uid()`. The query applies `status = 'confirmed'`, `starts_at < selected_end` and `ends_at > selected_start`, so cancelled rows and adjacent intervals do not conflict. Space names are read separately through active catalog RLS using only returned owned space IDs. Unreadable/missing metadata falls back to the generic label without losing the conflict. No other owner's reservation identity, reference or schedule is returned. No new RPC, grant, RLS change or migration is needed.
+
+Responses are force-dynamic with `Cache-Control: private, no-store` and `Vary: Cookie`; browser fetches use `cache: no-store`. Malformed calendar/step/duration/DST selections return 400, read failures return 503 instead of an empty conflict list, and auth failures retain the existing sign-in protection. No private provider details are exposed or logged. The server uses the existing IANA wall-time resolver, with no fixed UTC offset.
+
+The client debounces requests by 200 ms, immediately treats changed selections as pending, aborts obsolete requests, tags outcomes by selection/revision and ignores stale results after changes or unmount. It shares the existing availability focus/30-second refresh cadence rather than adding another polling timer. Refreshes recheck personal conflicts even when the date remains unchanged (for example, after cancellation elsewhere). Pending checks prevent continuation. A failed personal check shows “Your schedule could not be checked. You can continue; it will be checked at confirmation.” and allows review only if room/future/duration/opening-hours/blocked-period checks permit it. Failed checks never receive the green conflict-free status. Invalid or corrected selections clear the prior warning, and a known conflict remains blocked even if a late earlier response says clear.
+
+Server-generated review request IDs, selection/filter URLs, recovery/retry behavior, `create_booking`, cancellation and both atomic exclusion constraints are unchanged. Direct review navigation and conflicts introduced after the preliminary check still receive the authoritative `PBR01` confirmation error and My bookings link. A preliminary clear result does not reserve a room or guarantee confirmation.
+
+### Verification and manual setup
+
+No additional manual database setup is required; retain the existing migrations already reported applied. Do not rerun any earlier migration for this feature. Optional portfolio-hours seed application remains a separate manual choice. No remote SQL, real reservation creation/cancellation or Supabase settings changes were performed by the agent.
+
+Agent tests use mocked server reads and isolated UI fixtures, plus the existing disposable local PostgreSQL cluster with fake auth-schema identities. Query/route tests verify strict interval predicates, minimal granted columns, authentication, multiple conflicts, missing/unreadable names, malformed records, failed versus empty reads, invalid intervals, no-store responses and ignoring a submitted user ID. Real PostgreSQL SELECT checks under the existing column grants/RLS cover partial overlaps, containment, both adjacencies, cancelled records, multiple conflicts and another owner's records remaining inaccessible. The full existing concurrency/idempotency/confirmation/cancellation tests remain applicable. Browser regressions cover pending/blocked/clear/error states, corrections, room availability separation, failed-check continuation versus room-rule failures, stale/aborted/unmounted requests, refocus, filters, Chicago labels, multiple private links, final conflict after a clear preliminary check, and desktop/mobile widths.
+
+Pending hosted verification: using existing owned reservations, select an overlapping interval in a different room whose opening hours permit it; inspect the warning and owner-only detail link without confirming. Correct the selection to an adjacent or nonconflicting interval and verify that Continue is restored only when room rules permit it. Refocus an already-open panel to refresh the result. Verify another account cannot retrieve the first owner's conflicts through the authenticated endpoint. Treat deliberate race confirmation or real reservation mutations as separate, explicitly authorized checks; do not create/cancel records automatically for verification.
+
+Recorded agent results for the preliminary check (2026-10-28): lint, explicit route-generation/TypeScript checks, all 133 unit tests (18 files), and the final Webpack production build passed. The complete isolated catalog/booking/My bookings browser suite passed, including personal-schedule desktop/390/320px states, response races, failed-check navigation, and authoritative final-conflict handling. All 8 production desktop/mobile authentication/landing tests passed, including unauthenticated protection of the new endpoint. The expanded real PostgreSQL 17 disposable suite passed with owner-only strict-overlap reads under current column grants, cancelled/adjacent/multiple cases, unreadable inactive metadata without losing owned records, and the existing concurrent confirmation/idempotency/cancellation checks. Desktop/mobile fixture screenshots were visually inspected and copied to ignored `.tools/personal-schedule-preview/`. No hosted preliminary-read or reservation-write verification was performed by the agent. Existing migrations, booking creation/cancellation RPCs, confirmation action, review UUID generation and grants/RLS have no changes from this task.

@@ -27,6 +27,34 @@ describe("protected booking pages with mocked session and database reads",()=>{
     expect(view.props.issue).toBeNull();
     expect(view.props.changeHref).toContain("q=Atlas&amenity=display&date=2027-01-05&start=09%3A00&end=10%3A00");
   });
+  it.each([undefined,"invalid-request",[bookingFixtureId]])("redirects an absent or invalid request key to a server UUID (%j)",async request=>{
+    const query={...bookingFixtureSelection,q:"Atlas",minCapacity:"8",type:"meeting-room",amenity:["display","wi-fi"],page:"2",request};
+    await expect(ReviewPage({params:reviewArgs().params,searchParams:Promise.resolve(query)})).rejects.toThrow("REDIRECT");
+    expect(mocks.getReservation).not.toHaveBeenCalled();
+    const url=new URL(mocks.redirect.mock.calls[0][0],"http://10.0.0.160:3000");
+    const key=url.searchParams.get("request");
+    expect(key).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    expect(url.pathname).toBe("/dashboard/spaces/atlas-meeting-room/review");
+    for(const [name,value] of Object.entries(bookingFixtureSelection)) expect(url.searchParams.get(name)).toBe(value);
+    expect(url.searchParams.get("q")).toBe("Atlas");
+    expect(url.searchParams.get("minCapacity")).toBe("8");
+    expect(url.searchParams.get("type")).toBe("meeting-room");
+    expect(url.searchParams.get("page")).toBe("2");
+    expect(url.searchParams.getAll("amenity")).toEqual(["display","wi-fi"]);
+  });
+  it("retains the same server-issued request key across review reloads",async()=>{
+    await expect(ReviewPage({params:reviewArgs().params,searchParams:Promise.resolve(bookingFixtureSelection)})).rejects.toThrow("REDIRECT");
+    const url=new URL(mocks.redirect.mock.calls[0][0],"http://10.0.0.160:3000");
+    const query=Object.fromEntries(url.searchParams);
+    mocks.redirect.mockClear();
+    for(let reload=0;reload<2;reload++) {
+      const view=await ReviewPage({params:reviewArgs().params,searchParams:Promise.resolve(query)});
+      expect(view.props.requestId).toBe(query.request);
+      expect(view.props.selection).toEqual(bookingFixtureSelection);
+      expect(mocks.getReservation).toHaveBeenLastCalledWith(query.request,true);
+    }
+    expect(mocks.redirect).not.toHaveBeenCalled();
+  });
   it("recovers a matching committed request after a lost confirmation response",async()=>{
     mocks.getReservation.mockResolvedValue({ok:true,reservation:{id:bookingFixtureId,space_id:portfolioDetails[0].id,starts_at:"2027-01-05T15:00:00Z",ends_at:"2027-01-05T16:00:00Z",status:"confirmed"}});
     await expect(ReviewPage(reviewArgs())).rejects.toThrow("REDIRECT");

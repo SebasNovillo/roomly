@@ -8,6 +8,8 @@ import path from "node:path";
 import assert from "node:assert/strict";
 import { verifyCancellation } from "./cancellation.mjs";
 import { verifyScheduleMigrationPreflight,verifyUserSchedule } from "./user-schedule.mjs";
+import { verifyPortfolioHours } from "./portfolio-hours.mjs";
+import { verifyPersonalScheduleReads } from "./personal-schedule.mjs";
 
 const exec = promisify(execFile);
 const bin = process.env.ROOMLY_TEST_PG_BIN ?? "C:/Program Files/PostgreSQL/17/bin";
@@ -118,6 +120,8 @@ try {
   await sql(session(userB)+create("09:00","10:00"));
   await verifyCancellation({sql,session,space,otherSpace,userA,userB,create});
   await verifyUserSchedule({sql,session,userA,userB,create});
+  await verifyPersonalScheduleReads({sql,session,userA,userB});
+  await verifyPortfolioHours(sql);
   await sql(`update public.spaces set is_active=false where id='${space}';`);
   await rejects(session()+`select public.booking_day('${space}','2090-01-09');`,/Space unavailable/);
   await rejects(session()+create("18:00","19:00"),/Space unavailable/);

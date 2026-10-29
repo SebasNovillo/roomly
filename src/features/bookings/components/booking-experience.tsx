@@ -2,10 +2,12 @@
 
 import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Clock, Info } from "lucide-react";
 import type { CatalogFilters } from "@/features/spaces/catalog";
 import { formatOpeningTime } from "@/features/spaces/details";
-import { bookingHref, dateLabel, daySchema, daySegments, selectionIssue, serviceMessage, timeLabel, todayChicago, type DayResult, type Selection } from "../model";
+import { bookingHref, chicagoParts, dateLabel, daySchema, daySegments, selectionIssue, serviceMessage, timeLabel, todayChicago, userScheduleConflictMessage, type DayResult, type Selection } from "../model";
+import { usePersonalSchedule } from "../use-personal-schedule";
 
 export type BookingProps = { slug: string; filters: CatalogFilters; initialSelection: Selection; initialDay: DayResult };
 const times = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2,"0")}:${i % 2 ? "30" : "00"}`);
@@ -15,6 +17,8 @@ export function BookingExperience({ slug, filters, initialSelection, initialDay,
   const [selection, setSelection] = useState(initialSelection);
   const [result, setResult] = useState(initialDay);
   const [loading, setLoading] = useState(false);
+  const [scheduleRevision,setScheduleRevision] = useState(0);
+  const personal = usePersonalSchedule(selection,scheduleRevision);
   const [continuing, startTransition] = useTransition();
   const [now, setNow] = useState(() => initialDay.ok ? Date.parse(initialDay.day.now) : Date.now());
   useEffect(() => {
@@ -37,8 +41,8 @@ export function BookingExperience({ slug, filters, initialSelection, initialDay,
       finally { if (active && current === abort) setLoading(false); }
     }
     void refresh();
-    const interval = setInterval(() => void refresh(),30_000);
-    const onFocus = () => void refresh();
+    const onFocus = () => { void refresh(); setScheduleRevision(value=>value+1); };
+    const interval = setInterval(onFocus,30_000);
     window.addEventListener("focus",onFocus);
     return () => { active = false; current?.abort(); clearInterval(interval); window.removeEventListener("focus",onFocus); };
   }, [slug, selection.date]);
@@ -47,10 +51,15 @@ export function BookingExperience({ slug, filters, initialSelection, initialDay,
     return () => clearInterval(timer);
   }, []);
   const issue = selectionIssue(selection, result, now);
-  const status = loading ? "Checking the latest availability…" : issue ?? "This space is available for your selection. Your schedule will be checked when you confirm.";
+  const personalBlocked = personal.status === "pending" || personal.status === "conflict";
+  const status = loading ? "Checking the latest availability…" : issue ?? (personal.status === "pending" ? "Checking your schedule…"
+    : personal.status === "conflict" ? userScheduleConflictMessage
+    : personal.status === "error" ? "Your schedule could not be checked. You can continue; it will be checked at confirmation."
+    : "This space is available and no conflicts were found in your schedule. Both will be checked again at confirmation.");
   function change(key: keyof Selection, value: string) {
     const next = { ...selection, [key]: value };
     if (key === "date") setLoading(true);
+    setScheduleRevision(value=>value+1);
     setSelection(next);
     window.history.replaceState(null, "", bookingHref(slug, filters, next));
   }
@@ -72,8 +81,10 @@ export function BookingExperience({ slug, filters, initialSelection, initialDay,
       <h2>Choose your time</h2>
       <form onSubmit={event => {
         event.preventDefault();
-        if (issue || loading || continuing) return;
-        startTransition(() => router.push(bookingHref(slug, filters, selection, true, crypto.randomUUID())));
+        if (issue || loading || continuing || personalBlocked) return;
+        // The review route creates and persists its request key on the server.
+        // Browser randomUUID is unavailable over LAN HTTP.
+        startTransition(() => router.push(bookingHref(slug, filters, selection, true)));
       }}>
         <label htmlFor="booking-date">Date</label>
         <input id="booking-date" type="date" min={todayChicago(new Date(now))} value={selection.date} required onChange={event => { if (event.target.value) change("date",event.target.value); }} />
@@ -84,8 +95,16 @@ export function BookingExperience({ slug, filters, initialSelection, initialDay,
           </select>
         </div>)}</div>
         <p className="booking-timezone"><Clock size={14} aria-hidden="true" />All times in America/Chicago</p>
-        <p id="booking-selection-status" className={`booking-selection-status${!issue && !loading ? " selection-valid" : ""}`} role="status"><Info size={16} aria-hidden="true" />{status}</p>
-        <button className="auth-button" disabled={Boolean(issue) || loading || continuing} aria-describedby="booking-selection-status">{continuing ? "Opening review…" : "Continue to booking"}</button>
+        <div id="booking-selection-status" className={`booking-selection-status${!issue && !loading && personal.status === "clear" ? " selection-valid" : ""}${!issue && !loading && (personal.status === "conflict" || personal.status === "error") ? " selection-warning" : ""}`} role="status" aria-live="polite" aria-atomic="true">
+          <Info size={16} aria-hidden="true" /><div><p>{status}</p>
+            {!issue && !loading && personal.status === "conflict" && <ul className="personal-conflicts">{personal.conflicts.map(conflict=><li key={conflict.id}>
+              <strong>{conflict.spaceName ?? "Existing booking"}</strong>
+              <span>{dateLabel(chicagoParts(new Date(conflict.startsAt)).date)} · {timeLabel(conflict.startsAt)}–{timeLabel(conflict.endsAt)}</span>
+              <Link className="text-link" href={`/dashboard/reservations/${conflict.id}`}>View existing booking</Link>
+            </li>)}</ul>}
+          </div>
+        </div>
+        <button className="auth-button" disabled={Boolean(issue) || loading || continuing || personalBlocked} aria-describedby="booking-selection-status">{continuing ? "Opening review…" : "Continue to booking"}</button>
         <p className="availability-note">Minimum 30 minutes. Choose times in 30-minute increments.</p>
       </form>
     </aside>

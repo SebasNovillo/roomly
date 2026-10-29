@@ -238,6 +238,11 @@ body {
 .booking-selection-status { display: flex; align-items: flex-start; gap: 8px; background: #f7f8fb; border-radius: 12px; padding: 14px; margin-block: 18px 16px; font-size: 13px !important; line-height: 1.6; }
 .booking-selection-status svg { flex-shrink: 0; margin-top: 3px; }
 .booking-selection-status.selection-valid { background: #ecfdf4; color: #11634c; }
+.booking-selection-status.selection-warning { background: #fffbeb; color: #92400e; }
+.booking-selection-status > div { min-width: 0; }
+.booking-selection-status p { margin: 0; }
+.personal-conflicts { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 14px; }
+.personal-conflicts li { display: grid; gap: 3px; overflow-wrap: anywhere; }
 .choose-time .auth-button, .confirm-booking-form .auth-button { width: 100%; }
 .choose-time .auth-button:disabled, .confirm-booking-form .auth-button:disabled { background: #e3e7f0; color: #78879e; cursor: not-allowed; opacity: 1; }
 .availability-legend { display: flex; flex-wrap: wrap; list-style: none; padding: 0; gap: 12px; margin-top: 18px; font-size: 11px; }

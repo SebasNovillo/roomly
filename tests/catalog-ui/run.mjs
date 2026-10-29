@@ -8,6 +8,7 @@ import path from "node:path";
 import { verifyAmenitiesSummary } from "./amenities-regression.mjs";
 import { verifySpaceDetail } from "./detail-regression.mjs";
 import { verifyBookingFlow } from "./booking-regression.mjs";
+import { verifyPersonalSchedule } from "./personal-schedule-regression.mjs";
 import { verifyMyBookings } from "./my-bookings-regression.mjs";
 
 const root = process.cwd();
@@ -122,6 +123,7 @@ try {
   await expect(page.getByRole("heading", { name: "Space not found" })).toBeVisible();
   await verifySpaceDetail(page, base, output);
   await verifyBookingFlow(page, base, output);
+  await verifyPersonalSchedule(page, base, output);
   await verifyMyBookings(page,"http://127.0.0.1:3131/dashboard/bookings",output);
   await page.route("**/images/spaces/atlas-meeting-room.jpg", route => route.abort());
   await page.goto(base);
