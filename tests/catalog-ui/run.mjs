@@ -9,6 +9,7 @@ import { verifyAmenitiesSummary } from "./amenities-regression.mjs";
 import { verifySpaceDetail } from "./detail-regression.mjs";
 import { verifyBookingFlow } from "./booking-regression.mjs";
 import { verifyPersonalSchedule } from "./personal-schedule-regression.mjs";
+import { verifyDashboard } from "./dashboard-regression.mjs";
 import { verifyMyBookings } from "./my-bookings-regression.mjs";
 
 const root = process.cwd();
@@ -19,6 +20,7 @@ await build({ configFile: false, root: fixture, resolve: { alias: [
   { find: /^next\/navigation(?:\.js)?$/, replacement: path.join(fixture, "adapters/navigation.ts") },
   { find: /^next\/image(?:\.js)?$/, replacement: path.join(fixture, "adapters/image.tsx") },
   { find: "@/features/auth/actions", replacement: path.join(fixture, "adapters/actions.ts") },
+  { find: "@/lib/supabase/client", replacement: path.join(fixture, "adapters/dashboard-auth.ts") },
   { find: "@/features/bookings/actions", replacement: path.join(fixture, "adapters/bookings.ts") },
   { find: /^\.\.\/cancellation$/, replacement: path.join(fixture, "adapters/cancellation.ts") },
   { find: /^\.\.\/actions$/, replacement: path.join(fixture, "adapters/bookings.ts") },
@@ -125,6 +127,7 @@ try {
   await verifyBookingFlow(page, base, output);
   await verifyPersonalSchedule(page, base, output);
   await verifyMyBookings(page,"http://127.0.0.1:3131/dashboard/bookings",output);
+  await verifyDashboard(page,"http://127.0.0.1:3131/dashboard",output);
   await page.route("**/images/spaces/atlas-meeting-room.jpg", route => route.abort());
   await page.goto(base);
   await expect(page.locator(".space-card").first().getByText("Photo unavailable")).toBeVisible();

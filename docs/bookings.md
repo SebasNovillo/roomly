@@ -1,5 +1,7 @@
 # Booking flow
 
+**User-reported hosted verification, recorded 2026-10-28:** cross-space confirmation during an existing booking was rejected with the expected personal-conflict message; the early personal-conflict warning appeared successfully; adjacent reservations were confirmed successfully. These are the user's reported results, not agent-run hosted checks. They do not verify the new Dashboard integration, account-switch isolation, or every other pending hosted scenario below. Dashboard integration behavior and local verification are now documented in `dashboard.md`.
+
 **User-reported manual verification, 2026-10-27:** cancellation moved a reservation to Cancelled, released its occupied interval, and allowed that interval to be reserved again. This is the user's hosted cancellation result, separate from agent-run local/mocked tests. It does not verify the new cross-space user-schedule rule below.
 
 Extended 2026-10-26 with My bookings and owner-only cancellation. The sections about the initial 2026-10-22 implementation and its verification remain historical; the new migration and checks are documented below. No hosted reservation was created or cancelled by this task, and no remote migration/settings change was made.

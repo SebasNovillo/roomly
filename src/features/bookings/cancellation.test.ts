@@ -17,7 +17,7 @@ describe("cancellation server action with mocked Supabase",()=>{
     await expect(cancelReservation({},form())).rejects.toThrow("REDIRECT");
     expect(mocks.redirect).toHaveBeenCalledWith(`/dashboard/bookings?tab=cancelled&cancelled=${id}`);
     expect(mocks.getUser).toHaveBeenCalledOnce();expect(mocks.rpc).toHaveBeenCalledWith("cancel_booking",{p_reservation_id:id});
-    expect(mocks.revalidatePath.mock.calls).toEqual([["/dashboard/bookings"],[`/dashboard/reservations/${id}`],["/dashboard/spaces","layout"]]);
+    expect(mocks.revalidatePath.mock.calls).toEqual([["/dashboard"],["/dashboard/bookings"],[`/dashboard/reservations/${id}`],["/dashboard/spaces","layout"]]);
   });
   it.each(["22023","P0002","PGRST202","42501"])("preserves truthful failure for %s without exposing provider details",async code=>{
     mocks.rpc.mockResolvedValue({data:null,error:{code,message:"private detail"}});

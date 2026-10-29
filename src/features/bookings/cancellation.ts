@@ -21,6 +21,7 @@ export async function cancelReservation(_previous: CancellationState, form: Form
       : "We couldn’t cancel this booking right now. Try again, or keep your booking and refresh the page."};
     if (data !== parsed.data) return {message:"We couldn’t verify cancellation. Refresh your bookings before trying again."};
   } catch { return {message:"We couldn’t cancel this booking right now. Please try again."}; }
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/bookings");
   revalidatePath(`/dashboard/reservations/${parsed.data}`);
   revalidatePath("/dashboard/spaces","layout");

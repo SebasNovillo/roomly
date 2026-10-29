@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(()=>({ getViewer:vi.fn(),createClient:vi.fn(),getUser:vi.fn(),rpc:vi.fn(),redirect:vi.fn() }));
+const mocks = vi.hoisted(()=>({ getViewer:vi.fn(),createClient:vi.fn(),getUser:vi.fn(),rpc:vi.fn(),redirect:vi.fn(),revalidatePath:vi.fn() }));
 vi.mock("@/features/auth/viewer",()=>({getViewer:mocks.getViewer}));
 vi.mock("@/lib/supabase/server",()=>({createClient:mocks.createClient}));
 vi.mock("next/navigation",()=>({redirect:mocks.redirect}));
+vi.mock("next/cache",()=>({revalidatePath:mocks.revalidatePath}));
 import { confirmBooking } from "./actions";
 import { userScheduleConflictMessage } from "./model";
 const id = "bb000000-0000-4000-8000-000000000001";
@@ -18,6 +19,7 @@ describe("booking server action with mocked Supabase",()=>{
     expect(mocks.getUser).toHaveBeenCalledOnce();
     expect(mocks.rpc).toHaveBeenCalledWith("create_booking",{p_space_id:id,p_date:"2027-01-05",p_start:"09:00",p_end:"10:00",p_request_id:id});
     expect(mocks.redirect).toHaveBeenCalledWith(`/dashboard/reservations/${id}`);
+    expect(mocks.revalidatePath.mock.calls).toEqual([["/dashboard"],["/dashboard/bookings"],["/dashboard/spaces","layout"]]);
   });
   it("does not mutate after auth failure",async()=>{
     mocks.getUser.mockResolvedValue({data:{user:null},error:{code:"expired"}});
@@ -29,6 +31,7 @@ describe("booking server action with mocked Supabase",()=>{
     mocks.rpc.mockResolvedValue({data:null,error:{code,message:"private database detail"}});
     const state = await confirmBooking({},form());
     expect(state.message).toBeTruthy(); expect(state.message).not.toContain("private database detail"); expect(mocks.redirect).not.toHaveBeenCalled();
+    expect(mocks.revalidatePath).not.toHaveBeenCalled();
   });
   it("keeps the same idempotency key across repeated confirmations",async()=>{
     for(let i=0;i<2;i++) await expect(confirmBooking({},form())).rejects.toThrow("REDIRECT");

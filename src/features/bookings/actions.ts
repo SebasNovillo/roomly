@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getViewer } from "@/features/auth/viewer";
 import { createClient } from "@/lib/supabase/server";
@@ -25,5 +26,8 @@ export async function confirmBooking(_previous: BookingState, form: FormData): P
     id = data;
   } catch { return { message: serviceMessage }; }
   // Only a successful, validated database result can reach this redirect.
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/bookings");
+  revalidatePath("/dashboard/spaces","layout");
   redirect(`/dashboard/reservations/${id}`);
 }

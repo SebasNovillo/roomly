@@ -10,6 +10,7 @@ import { verifyCancellation } from "./cancellation.mjs";
 import { verifyScheduleMigrationPreflight,verifyUserSchedule } from "./user-schedule.mjs";
 import { verifyPortfolioHours } from "./portfolio-hours.mjs";
 import { verifyPersonalScheduleReads } from "./personal-schedule.mjs";
+import { verifyDashboardSnapshot } from "./dashboard.mjs";
 
 const exec = promisify(execFile);
 const bin = process.env.ROOMLY_TEST_PG_BIN ?? "C:/Program Files/PostgreSQL/17/bin";
@@ -121,6 +122,7 @@ try {
   await verifyCancellation({sql,session,space,otherSpace,userA,userB,create});
   await verifyUserSchedule({sql,session,userA,userB,create});
   await verifyPersonalScheduleReads({sql,session,userA,userB});
+  await verifyDashboardSnapshot({sql,session,userA,userB});
   await verifyPortfolioHours(sql);
   await sql(`update public.spaces set is_active=false where id='${space}';`);
   await rejects(session()+`select public.booking_day('${space}','2090-01-09');`,/Space unavailable/);

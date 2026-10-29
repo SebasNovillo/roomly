@@ -26,6 +26,8 @@ it("uses the verified user's own profile name rather than metadata", async () =>
   mocks.from.mockReturnValue({ select });
   const result = await DashboardPage();
   expect(result.props.name).toBe("Current profile name");
+  expect(result.props.accountId).toBe("verified-user");
+  expect(result.key).toBe("verified-user");
   expect(mocks.from).toHaveBeenCalledWith("profiles");
   expect(select).toHaveBeenCalledWith("full_name");
   expect(eq).toHaveBeenCalledWith("id", "verified-user");

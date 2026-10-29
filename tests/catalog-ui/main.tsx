@@ -1,4 +1,7 @@
 import { createRoot } from "react-dom/client";
+import { useEffect, useState } from "react";
+import { DashboardContent } from "../../src/components/dashboard-content";
+import { dashboardFixture } from "../fixtures/dashboard";
 import { AppShell } from "../../src/components/app-shell";
 import { CatalogView } from "../../src/features/spaces/components/catalog-view";
 import { SpaceDetail } from "../../src/features/spaces/components/space-detail";
@@ -15,6 +18,17 @@ import { parseBookingPage } from "../../src/features/bookings/my-bookings";
 import { cancellableFixtureId,myBookingFixtures,myBookingsFixture,myBookingsNow } from "../fixtures/my-bookings";
 
 const params = new URLSearchParams(location.search);
+function DashboardPreview() {
+  const [refreshes,setRefreshes]=useState(0);
+  const mode=params.get("fixtureDashboard") ?? "multiple";
+  useEffect(()=>{
+    const refresh=()=>setRefreshes(value=>value+1);
+    window.addEventListener("fixture:refresh",refresh);
+    return ()=>window.removeEventListener("fixture:refresh",refresh);
+  },[]);
+  const result=dashboardFixture(mode === "retry" ? refreshes ? "one" : "error" : mode,mode === "boundary" ? new Date().toISOString() : undefined);
+  return <div data-testid="dashboard-fixture" data-refreshes={refreshes}><DashboardContent accountId={params.get("fixtureAccount") ?? "fixture-owner"} name="Dashboard test member" now={result?.ok ? result.dashboard.now : "2026-10-26T18:00:00Z"} result={result} /></div>;
+}
 const filters = parseFilters({ ...Object.fromEntries(params), amenity: params.getAll("amenity") });
 const spaces = portfolioSpaces.filter(space => (!filters.q || `${space.name} ${space.description}`.toLowerCase().includes(filters.q.toLowerCase()))
   && (!filters.minCapacity || space.capacity >= filters.minCapacity) && (!filters.type || space.type === filters.type)
@@ -37,7 +51,7 @@ const cancelledIds:string[] = myBookings || confirmation ? await fetch("/__fixtu
 const {tab,page}=parseBookingPage(Object.fromEntries(params));
 const record=myBookingFixtures.find(row=>row.id === location.pathname.split("/").at(-1));
 const detailRecord=record && cancelledIds.includes(record.id) ? {...record,status:"cancelled" as const,cancelled_at:myBookingsNow} : record;
-const content = myBookings ? <BookingsView tab={tab} result={myBookingsFixture(tab,page,cancelledIds,params.get("fixtureBookings"))} successReference={params.get("cancelled") === cancellableFixtureId && cancelledIds.includes(cancellableFixtureId) ? cancellableFixtureId : undefined} />
+const content = location.pathname === "/dashboard" ? <DashboardPreview /> : myBookings ? <BookingsView tab={tab} result={myBookingsFixture(tab,page,cancelledIds,params.get("fixtureBookings"))} successReference={params.get("cancelled") === cancellableFixtureId && cancelledIds.includes(cancellableFixtureId) ? cancellableFixtureId : undefined} />
   : confirmation ? <ConfirmationView reservation={detailRecord ?? { id:bookingFixtureId,space_id:portfolioDetails[0].id,starts_at:"2027-01-05T15:00:00Z",ends_at:"2027-01-05T16:00:00Z",status:"confirmed" }} space={portfolioDetails[0]} now={detailRecord ? myBookingsNow : "2027-01-05T12:00:00Z"} />
   : review && space ? <ReviewView space={space} selection={selection} requestId={params.get("request") ?? bookingFixtureId} changeHref={bookingHref(space.slug,filters,selection)} issue={selectionIssue(selection,day,Date.parse("2027-01-05T12:00:00Z"))} />
   : slug ? space ? <SpaceDetail space={space} filters={filters} booking={bookingProps} /> : <SpaceNotFound /> : <CatalogView filters={filters} result={result} />;
