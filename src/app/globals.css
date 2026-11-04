@@ -87,14 +87,14 @@ body {
 .sign-out-button:hover { color: var(--color-ink); background: #f4f5f9; }
 .shell-icon-button { display: inline-flex; align-items: center; justify-content: center; min-width: 40px; min-height: 40px; border: 1px solid var(--color-line); border-radius: 10px; color: #5a6371; background: white; }
 .shell-icon-button:hover { background: #f4f5f9; }
-.sidebar-collapse { margin-top: 18px; gap: 10px; border: 0; justify-content: flex-start; padding: 10px 14px; font-size: 12px; }
+.sidebar-collapse { flex-shrink: 0; min-width: 36px; min-height: 36px; }
 .sidebar-collapsed .desktop-sidebar { width: 88px; flex-basis: 88px; padding-inline: 16px; }
-.sidebar-collapsed .desktop-sidebar .sidebar-brand { margin-inline: 10px; }
+.sidebar-collapsed .desktop-sidebar .sidebar-brand { flex-direction: column; gap: 12px; margin-inline: 0; }
 .sidebar-collapsed .desktop-sidebar .sidebar-brand a > span:last-child { display: none; }
 .sidebar-collapsed .desktop-sidebar .sidebar-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .sidebar-collapsed .desktop-sidebar .sidebar-link { justify-content: center; padding-inline: 0; }
 .sidebar-collapsed .desktop-sidebar .sidebar-user { padding-inline: 8px; }
-.sidebar-collapsed .desktop-sidebar .sidebar-collapse { justify-content: center; padding-inline: 0; }
+.sidebar-collapsed .desktop-sidebar .sign-out-button { width: 100%; justify-content: center; padding-inline: 0; }
 .workspace { min-width: 0; flex: 1; }
 .workspace-main { max-width: 1440px; padding: 48px 40px; margin-inline: auto; outline: none; }
 .mobile-header { display: none; }

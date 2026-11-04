@@ -57,6 +57,60 @@ try {
   page.on("pageerror", error => errors.push(error.message));
   await page.route("**/*", route => new URL(route.request().url()).hostname === "127.0.0.1" ? route.continue() : route.abort());
   const base = "http://127.0.0.1:3131/dashboard/spaces";
+  const dashboard = new URL("/dashboard", base).href;
+  const sidebar = page.getByRole("complementary", { name: "Workspace sidebar" });
+  await page.goto(dashboard);
+  const collapse = sidebar.getByRole("button", { name: "Collapse sidebar" });
+  const expand = sidebar.getByRole("button", { name: "Expand sidebar" });
+  const logo = await sidebar.getByRole("link", { name: "Roomly home" }).boundingBox();
+  const toggle = await collapse.boundingBox();
+  expect(toggle.x).toBeGreaterThan(logo.x + logo.width);
+  const expandedWidth = (await page.locator(".workspace").boundingBox()).width;
+  await collapse.focus();
+  await page.keyboard.press("Enter");
+  await expect(expand).toBeFocused();
+  await expect(expand).toHaveAttribute("aria-expanded", "false");
+  await expect(page).toHaveURL(dashboard);
+  for (const [label, url] of [
+    ["Explore spaces", base],
+    ["My bookings", dashboard + "/bookings"],
+    ["Dashboard", dashboard],
+  ]) {
+    const link = sidebar.getByRole("link", { name: label, exact: true });
+    await link.focus();
+    await page.keyboard.press("Enter");
+    await expect(page).toHaveURL(url);
+    await expect(link).toHaveAttribute("aria-current", "page");
+    await page.reload();
+    await expect(expand).toBeVisible();
+    await expect(link).toHaveAttribute("aria-current", "page");
+    await expect(sidebar.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
+    expect((await page.locator(".workspace").boundingBox()).width).toBeGreaterThan(expandedWidth);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await expand.press("Space");
+    await expect(collapse).toBeFocused();
+    await expect(link).toHaveAttribute("aria-current", "page");
+    expect((await page.locator(".workspace").boundingBox()).width).toBe(expandedWidth);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await collapse.press("Enter");
+    await expect(expand).toBeFocused();
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(expand).toBeHidden();
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  const mobile = page.getByRole("dialog", { name: "Workspace navigation" });
+  await expect(mobile.getByRole("link", { name: "Dashboard" })).toBeVisible();
+  await expect(mobile.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(mobile).toBeHidden();
+  await page.setViewportSize({ width: 1574, height: 1000 });
+  await expect(expand).toBeVisible();
+  await expand.focus();
+  await page.keyboard.press("Space");
+  await expect(collapse).toBeFocused();
+  await page.reload();
+  await expect(collapse).toHaveAttribute("aria-expanded", "true");
+  console.log("PASS: desktop sidebar placement, keyboard, route highlights, persistence, workspace width, sign-out and mobile navigation.");
   await verifyAmenitiesSummary(page, base);
   await page.goto(base);
   await expect(page.getByText("6 spaces found")).toBeVisible();

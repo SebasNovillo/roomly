@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CalendarDays, Compass, LayoutDashboard, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
@@ -13,9 +13,43 @@ const destinations = [
   { href: "/dashboard/bookings", label: "My bookings", icon: CalendarDays },
 ];
 
+const sidebarPreferenceKey = "roomly.sidebar.collapsed";
+const sidebarPreferenceEvent = "roomly:sidebar-preference";
+let inMemoryPreference: boolean | undefined;
+
+function readSidebarPreference() {
+  if (inMemoryPreference !== undefined) return inMemoryPreference;
+  try {
+    return localStorage.getItem(sidebarPreferenceKey) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function subscribeToSidebarPreference(onChange: () => void) {
+  window.addEventListener(sidebarPreferenceEvent, onChange);
+  return () => window.removeEventListener(sidebarPreferenceEvent, onChange);
+}
+
+function writeSidebarPreference(collapsed: boolean) {
+  try {
+    localStorage.setItem(sidebarPreferenceKey, String(collapsed));
+    inMemoryPreference = undefined;
+  } catch {
+    inMemoryPreference = collapsed;
+  }
+  window.dispatchEvent(new Event(sidebarPreferenceEvent));
+}
+
+const expandedServerPreference = () => false;
+
 export function AppShell({ name, children }: { name: string; children: React.ReactNode }) {
   const pathname = usePathname();
-  const [collapsed, setCollapsed] = useState(false);
+  const collapsed = useSyncExternalStore(
+    subscribeToSidebarPreference,
+    readSidebarPreference,
+    expandedServerPreference,
+  );
   const [mobileOpen, setMobileOpen] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
@@ -33,8 +67,27 @@ export function AppShell({ name, children }: { name: string; children: React.Rea
   const initials = name.trim().split(/\s+/).slice(0, 2).map(part => Array.from(part)[0]).join("").toLocaleUpperCase();
   function navigation(mobile = false) {
     return <>
-      <div className="sidebar-brand"><RoomlyLogo />{mobile && <button className="shell-icon-button" aria-label="Close navigation" onClick={() => dialog.current?.close()}><X size={20} aria-hidden="true" /></button>}</div>
-      <nav aria-label={mobile ? "Mobile navigation" : "Main navigation"}>
+      <div className="sidebar-brand">
+        <RoomlyLogo />
+        {mobile ? (
+          <button className="shell-icon-button" aria-label="Close navigation" onClick={() => dialog.current?.close()}>
+            <X size={20} aria-hidden="true" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="sidebar-collapse shell-icon-button"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-expanded={!collapsed}
+            aria-controls="desktop-sidebar-navigation"
+            onClick={() => writeSidebarPreference(!collapsed)}
+          >
+            {collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}
+          </button>
+        )}
+      </div>
+      <nav id={mobile ? undefined : "desktop-sidebar-navigation"} aria-label={mobile ? "Mobile navigation" : "Main navigation"}>
         {destinations.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className="sidebar-link" aria-current={pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`)) ? "page" : undefined} title={collapsed && !mobile ? label : undefined} onClick={() => dialog.current?.close()}><Icon size={19} aria-hidden="true" /><span className="sidebar-label">{label}</span></Link>)}
       </nav>
       <div className="sidebar-bottom">
@@ -47,7 +100,6 @@ export function AppShell({ name, children }: { name: string; children: React.Rea
     <a className="skip-link" href="#main-content">Skip to content</a>
     <aside className="desktop-sidebar" aria-label="Workspace sidebar">
       {navigation()}
-      <button className="sidebar-collapse shell-icon-button" aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!collapsed} onClick={() => setCollapsed(!collapsed)}>{collapsed ? <PanelLeftOpen size={18} aria-hidden="true" /> : <PanelLeftClose size={18} aria-hidden="true" />}<span className="sidebar-label">Collapse sidebar</span></button>
     </aside>
     <div className="workspace">
       <header className="mobile-header"><RoomlyLogo /><button className="shell-icon-button" aria-label="Open navigation" aria-haspopup="dialog" aria-controls="workspace-navigation" aria-expanded={mobileOpen} onClick={() => dialog.current?.showModal()}><Menu size={22} aria-hidden="true" /></button></header>
