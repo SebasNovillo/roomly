@@ -84,7 +84,12 @@ try {
     await page.reload();
     await expect(expand).toBeVisible();
     await expect(link).toHaveAttribute("aria-current", "page");
+    const account = sidebar.getByRole("button", { name: /Account options for/ });
+    await account.press("Enter");
     await expect(sidebar.getByRole("button", { name: "Sign out", exact: true })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "My profile" })).toHaveAttribute("href", "/dashboard/profile");
+    await sidebar.getByRole("link", { name: "My profile" }).press("Escape");
+    await expect(account).toBeFocused();
     expect((await page.locator(".workspace").boundingBox()).width).toBeGreaterThan(expandedWidth);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expand.press("Space");

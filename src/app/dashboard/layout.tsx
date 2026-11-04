@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const viewer = await getViewer();
-  return <AppShell name={viewer.name}>
+  return <AppShell name={viewer.name} email={viewer.email}>
     {viewer.profileUnavailable && <p role="status" className="profile-notice">Your profile is unavailable. Your account is signed in, but profile setup needs to be checked.</p>}
     {children}
   </AppShell>;

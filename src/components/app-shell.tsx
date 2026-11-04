@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Compass, LayoutDashboard, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { CalendarDays, Compass, LayoutDashboard, Menu, PanelLeftClose, PanelLeftOpen, UserRound, X } from "lucide-react";
+import { AccountMenu } from "./account-menu";
 import { RoomlyLogo } from "./roomly-logo";
 import { SignOutButton } from "./sign-out-button";
 
@@ -43,7 +44,7 @@ function writeSidebarPreference(collapsed: boolean) {
 
 const expandedServerPreference = () => false;
 
-export function AppShell({ name, children }: { name: string; children: React.ReactNode }) {
+export function AppShell({ name, email = "", children }: { name: string; email?: string; children: React.ReactNode }) {
   const pathname = usePathname();
   const collapsed = useSyncExternalStore(
     subscribeToSidebarPreference,
@@ -91,8 +92,15 @@ export function AppShell({ name, children }: { name: string; children: React.Rea
         {destinations.map(({ href, label, icon: Icon }) => <Link key={href} href={href} className="sidebar-link" aria-current={pathname === href || (href !== "/dashboard" && pathname.startsWith(`${href}/`)) ? "page" : undefined} title={collapsed && !mobile ? label : undefined} onClick={() => dialog.current?.close()}><Icon size={19} aria-hidden="true" /><span className="sidebar-label">{label}</span></Link>)}
       </nav>
       <div className="sidebar-bottom">
-        <div className="sidebar-user"><span className="user-avatar" aria-hidden="true">{initials}</span><div className="sidebar-label"><p className="user-name">{name}</p><p className="user-caption">Member</p></div></div>
-        <SignOutButton compact={collapsed && !mobile} />
+        {mobile ? (
+          <>
+            <div className="sidebar-user"><span className="user-avatar" aria-hidden="true">{initials}</span><div><p className="user-name">{name}</p><p className="user-caption">Member</p></div></div>
+            <Link href="/dashboard/profile" className="sign-out-button" onClick={() => dialog.current?.close()}>
+              <UserRound size={18} aria-hidden="true" />My profile
+            </Link>
+            <SignOutButton />
+          </>
+        ) : <AccountMenu key={pathname} name={name} email={email} initials={initials} collapsed={collapsed} />}
       </div>
     </>;
   }
