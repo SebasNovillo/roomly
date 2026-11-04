@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   // Confirmation URLs contain token hashes. Do not write incoming URLs to dev logs.
   logging: { incomingRequests: false },
   reactStrictMode: true,
+  devIndicators: { position: "bottom-right" },
   turbopack: { root: process.cwd() },
 };
 
