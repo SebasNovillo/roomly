@@ -1,3 +1,3 @@
 # Profile
 
-The dashboard reads the authenticated user's profile. The versioned SQL migration in `supabase/migrations` creates profiles on registration, enforces ownership with RLS, and restricts editable columns. Apply it manually as described in `docs/authentication.md`. A profile editing screen is not implemented.
+The authenticated profile page at `/dashboard/profile` reads the user's verified email and profile. Members can update their name and time zone using the existing owner-only permissions. The profile time zone preference is stored separately from Roomly's Chicago booking display.

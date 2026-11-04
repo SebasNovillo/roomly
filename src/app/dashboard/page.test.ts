@@ -29,7 +29,7 @@ it("uses the verified user's own profile name rather than metadata", async () =>
   expect(result.props.accountId).toBe("verified-user");
   expect(result.key).toBe("verified-user");
   expect(mocks.from).toHaveBeenCalledWith("profiles");
-  expect(select).toHaveBeenCalledWith("full_name");
+  expect(select).toHaveBeenCalledWith("full_name,timezone");
   expect(eq).toHaveBeenCalledWith("id", "verified-user");
 });
 

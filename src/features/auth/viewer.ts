@@ -9,7 +9,7 @@ export const getViewer = cache(async () => {
   const supabase = await createClient();
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) redirect("/sign-in?next=%2Fdashboard");
-  const { data: profile, error } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+  const { data: profile, error } = await supabase.from("profiles").select("full_name,timezone").eq("id", user.id).maybeSingle();
   const name = profile?.full_name || (typeof user.user_metadata.full_name === "string" ? user.user_metadata.full_name : "Member");
-  return { id: user.id, name: name as string, profileUnavailable: Boolean(error || !profile) };
+  return { id: user.id, name: name as string, email: user.email ?? "", timezone: profile?.timezone ?? null, profileUnavailable: Boolean(error || !profile) };
 });
