@@ -70,6 +70,7 @@ try {
   await page.keyboard.press("Enter");
   await expect(expand).toBeFocused();
   await expect(expand).toHaveAttribute("aria-expanded", "false");
+  await expect(sidebar.getByRole("link", { name: "Roomly home" })).toHaveCount(0);
   await expect(page).toHaveURL(dashboard);
   for (const [label, url] of [
     ["Explore spaces", base],

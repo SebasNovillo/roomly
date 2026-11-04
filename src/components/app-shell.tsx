@@ -69,7 +69,7 @@ export function AppShell({ name, email = "", children }: { name: string; email?:
   function navigation(mobile = false) {
     return <>
       <div className="sidebar-brand">
-        <RoomlyLogo />
+        {(mobile || !collapsed) && <RoomlyLogo />}
         {mobile ? (
           <button className="shell-icon-button" aria-label="Close navigation" onClick={() => dialog.current?.close()}>
             <X size={20} aria-hidden="true" />

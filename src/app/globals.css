@@ -110,10 +110,9 @@ body {
 .shell-icon-button:hover { background: #f4f5f9; }
 .sidebar-collapse { flex-shrink: 0; min-width: 36px; min-height: 36px; }
 .sidebar-collapsed .desktop-sidebar { width: 88px; flex-basis: 88px; padding-inline: 16px; }
-.sidebar-collapsed .desktop-sidebar .sidebar-brand { flex-direction: column; gap: 12px; margin-inline: 0; }
+.sidebar-collapsed .desktop-sidebar .sidebar-brand { justify-content: center; margin-inline: 0; }
 .sidebar-collapsed .desktop-sidebar .sidebar-collapse { border-color: transparent; background: transparent; }
 .sidebar-collapsed .desktop-sidebar .sidebar-collapse:hover { background: #f4f5f9; }
-.sidebar-collapsed .desktop-sidebar .sidebar-brand a > span:last-child { display: none; }
 .sidebar-collapsed .desktop-sidebar .sidebar-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .sidebar-collapsed .desktop-sidebar .sidebar-link { justify-content: center; padding-inline: 0; }
 .sidebar-collapsed .desktop-sidebar .sidebar-user { padding-inline: 8px; }
