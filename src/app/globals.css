@@ -69,7 +69,9 @@ body {
 .desktop-sidebar { width: 256px; flex: 0 0 256px; height: 100dvh; position: sticky; top: 0; display: flex; flex-direction: column; padding: 32px 20px 20px; border-right: 1px solid var(--color-line); background: white; overflow-y: auto; }
 .sidebar-brand { display: flex; align-items: center; justify-content: space-between; min-height: 40px; margin: 0 8px 38px; }
 .roomly-app .sidebar-brand a { gap: 11px; white-space: nowrap; }
-.roomly-app .sidebar-brand a > span:first-child, .roomly-app .mobile-header a > span:first-child { width: 36px; height: 36px; border-radius: 12px; }
+.roomly-app .sidebar-brand a > span:first-child,
+.roomly-app .mobile-header a > span:first-child,
+.sidebar-collapsed .desktop-sidebar .sidebar-collapse { width: 36px; height: 36px; border-radius: 12px; }
 .roomly-app .sidebar-brand a > span:last-child, .roomly-app .mobile-header a > span:last-child { font-size: 23px; }
 .roomly-app nav { display: grid; gap: 8px; }
 .sidebar-link { display: flex; align-items: center; gap: 13px; min-height: 48px; padding: 12px 15px; border-radius: 12px; font-size: 15px; color: #596273; }
@@ -111,8 +113,8 @@ body {
 .sidebar-collapse { flex-shrink: 0; min-width: 36px; min-height: 36px; }
 .sidebar-collapsed .desktop-sidebar { width: 88px; flex-basis: 88px; padding-inline: 16px; }
 .sidebar-collapsed .desktop-sidebar .sidebar-brand { justify-content: center; margin-inline: 0; }
-.sidebar-collapsed .desktop-sidebar .sidebar-collapse { border-color: transparent; background: transparent; }
-.sidebar-collapsed .desktop-sidebar .sidebar-collapse:hover { background: #f4f5f9; }
+.sidebar-collapsed .desktop-sidebar .sidebar-collapse { border-color: transparent; background: var(--color-primary); color: white; }
+.sidebar-collapsed .desktop-sidebar .sidebar-collapse:hover { background: color-mix(in srgb, var(--color-primary) 92%, black); }
 .sidebar-collapsed .desktop-sidebar .sidebar-label { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .sidebar-collapsed .desktop-sidebar .sidebar-link { justify-content: center; padding-inline: 0; }
 .sidebar-collapsed .desktop-sidebar .sidebar-user { padding-inline: 8px; }
