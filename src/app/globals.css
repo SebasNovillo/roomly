@@ -436,7 +436,7 @@ body {
 }
 @media (max-width: 1023px) {
   .desktop-sidebar { display: none; }
-  .mobile-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--color-line); background: white; }
+  .mobile-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: 16px 24px; border-bottom: 1px solid var(--color-line); background: white; }
   .workspace-main { padding: 40px 28px; }
   .dashboard-heading h1 { font-size: 36px; }
 }
