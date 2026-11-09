@@ -69,7 +69,7 @@ export function AppShell({ name, email = "", children }: { name: string; email?:
   function navigation(mobile = false) {
     return <>
       <div className="sidebar-brand">
-        {(mobile || !collapsed) && <RoomlyLogo />}
+        {(mobile || !collapsed) && <RoomlyLogo href="/dashboard" onClick={mobile ? () => dialog.current?.close() : undefined} />}
         {mobile ? (
           <button className="shell-icon-button" aria-label="Close navigation" onClick={() => dialog.current?.close()}>
             <X size={20} aria-hidden="true" />
@@ -110,7 +110,7 @@ export function AppShell({ name, email = "", children }: { name: string; email?:
       {navigation()}
     </aside>
     <div className="workspace">
-      <header className="mobile-header"><RoomlyLogo /><button className="shell-icon-button" aria-label="Open navigation" aria-haspopup="dialog" aria-controls="workspace-navigation" aria-expanded={mobileOpen} onClick={() => dialog.current?.showModal()}><Menu size={22} aria-hidden="true" /></button></header>
+      <header className="mobile-header"><RoomlyLogo href="/dashboard" /><button className="shell-icon-button" aria-label="Open navigation" aria-haspopup="dialog" aria-controls="workspace-navigation" aria-expanded={mobileOpen} onClick={() => dialog.current?.showModal()}><Menu size={22} aria-hidden="true" /></button></header>
       <main id="main-content" tabIndex={-1} className="workspace-main">{children}</main>
     </div>
     <dialog ref={dialog} id="workspace-navigation" className="mobile-navigation" aria-label="Workspace navigation" onToggle={event => setMobileOpen(event.newState === "open")} onClick={event => { if (event.target === dialog.current) dialog.current.close(); }}>

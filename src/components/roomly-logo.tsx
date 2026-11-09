@@ -1,9 +1,10 @@
 import { PanelsTopLeft } from "lucide-react";
 import Link from "next/link";
+import type { MouseEventHandler } from "react";
 
-export function RoomlyLogo() {
+export function RoomlyLogo({ href = "/", onClick }: { href?: string; onClick?: MouseEventHandler<HTMLAnchorElement> }) {
   return (
-    <Link href="/" aria-label="Roomly home" className="inline-flex items-center gap-3 rounded-sm">
+    <Link href={href} onClick={onClick} aria-label="Roomly home" className="inline-flex items-center gap-3 rounded-sm">
       <span className="flex size-10 items-center justify-center rounded-xl bg-primary text-white">
         <PanelsTopLeft size={23} strokeWidth={1.8} aria-hidden="true" />
       </span>
