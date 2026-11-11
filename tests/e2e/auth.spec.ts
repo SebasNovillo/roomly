@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 test("account links and unauthenticated dashboard protection", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("link", { name: "Sign in", exact: true }).click();
+  await page.getByRole("link", { name: "Sign in", exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/sign-in\?next=%2Fdashboard/);
